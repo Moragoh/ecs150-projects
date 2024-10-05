@@ -1,6 +1,6 @@
 #include <string>
 #include <cstring>
-#include <iostream> 
+#include <iostream>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
         str = stringOut.str();
 
         // Error checking--no instructions given on what to do here
-        if ((writeRet = write(STDOUT_FILENO, str.c_str(), str.length())) < 0)
+        if ((write(STDOUT_FILENO, str.c_str(), str.length())) < 0)
         {
             return -1;
         }
@@ -87,7 +87,6 @@ int main(int argc, char *argv[])
         // Iterate through the string character by character
         for (int i = 0; i < totalInputStr.length(); i++)
         {
-
             // Check if prevChar is null (to see if this is the fist char)
             if (prevChar == '\0')
             {

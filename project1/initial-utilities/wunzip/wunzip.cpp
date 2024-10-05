@@ -19,8 +19,6 @@ int writeDecompressionRes(int count, char charToWrite)
 
     resultStr = result.str();
 
-    // Error checking--no instructions given on what to do here
-
     // Write results out
     if ((write(STDOUT_FILENO, resultStr.c_str(), resultStr.length())) < 0)
     {
@@ -65,7 +63,7 @@ int main(int argc, char *argv[])
             if (fileDescriptor < 0)
             {
                 // First write what needs to be printed out to stdout in a string stream
-                stringOut << "wzip: cannot open file\n";
+                stringOut << "wunzip: cannot open file\n";
 
                 // Convert to cstring so that it can be written out to stdout
                 str = stringOut.str();
@@ -92,7 +90,6 @@ int main(int argc, char *argv[])
         // Perform the decompression
         string totalInputStr = totalInput.str();
 
-        // memcpy into binary
         for (int i = 0; i < totalInputStr.size(); i += 5)
         {
             string strToDecompress = totalInputStr.substr(i, 5);

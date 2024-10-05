@@ -8,7 +8,6 @@ using namespace std;
 
 int searchString(string searchTerm, string stringToSearch)
 {
-
     size_t res = stringToSearch.string::find(searchTerm);
 
     if (res != string::npos)
@@ -36,7 +35,7 @@ int main(int argc, char *argv[])
     // Check if argc is 1 (no arguments)
     if (argc == 1)
     {
-        stringOut << "wgrep: searchterm [file ...]\n"; 
+        stringOut << "wgrep: searchterm [file ...]\n";
         str = stringOut.str();
 
         // Error checking--no instructions given on what to do here
@@ -57,8 +56,6 @@ int main(int argc, char *argv[])
         {
             if (buffer[0] == '\n')
             {
-                // char c = buffer[0];
-                // currStr.push_back(c);
                 // Newline, so search through this line
                 int searchRes = searchString(searchTerm, currStr);
                 // Write the search results--if nothing is found, nothing will be added.
@@ -67,7 +64,6 @@ int main(int argc, char *argv[])
                 {
                     wgrepResult << currStr << endl;
                 }
-
                 currStr = "";
             }
             else
@@ -112,17 +108,15 @@ int main(int argc, char *argv[])
             {
                 if (buffer[0] == '\n')
                 {
-                    // char c = buffer[0];
-                    // currStr.push_back(c);                
                     // Newline, so search through this line
                     int searchRes = searchString(searchTerm, currStr);
                     // Write the search results--if nothing is found, nothing will be added.
 
-                    if (searchRes == 0) 
+                    if (searchRes == 0)
                     {
                         wgrepResult << currStr << endl;
                     }
-                    
+
                     currStr = "";
                 }
                 else

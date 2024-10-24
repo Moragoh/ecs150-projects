@@ -95,15 +95,16 @@ int main(int argc, char *argv[])
         {
             string strToDecompress = totalInputStr.substr(i, 5);
             string charCountSubStr = strToDecompress.substr(0, 4);
-            char compressedChar = strToDecompress[4];
+            char charCount = charCountSubStr[0];
+            // char compressedChar = strToDecompress[4];
 
             // Convert character to int
-            int charCountInt;
-            // using .data() seems to fix the error encountered on CSIF where number is wrong
-            memcpy(&charCountInt, charCountSubStr.data(), sizeof(int));
+            // int charCountInt = (int)charCount;
+
+            cout << charCountSubStr << "|" << charCount << " " << endl;
 
             // Write the results out
-            writeDecompressionRes(charCountInt, compressedChar);
+            // writeDecompressionRes(charCountInt, compressedChar);
         }
     }
     return 0;

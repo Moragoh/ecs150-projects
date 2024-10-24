@@ -1,4 +1,5 @@
 #include <string>
+#include <string.h>
 #include <cstring>
 #include <iostream>
 #include <fcntl.h>
@@ -83,9 +84,11 @@ int main(int argc, char *argv[])
         string totalInputStr = totalInput.str();
         // Init prevChar to null
         char prevChar = '\0';
-        uint32_t charCount = 0; // Fixed to 4 bytes
+        uint32_t charCount = 0; // Fixed to 4 bytes (32 bits)
+
         // Iterate through the string character by character
-        for (int i = 0; i < totalInputStr.length(); i++)
+        // Have to have i be an unsigned long int to avoid -Werror
+        for (unsigned long int i = 0; i < totalInputStr.length(); i++)
         {
             // Check if prevChar is null (to see if this is the fist char)
             if (prevChar == '\0')
@@ -108,7 +111,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        // Special case for writing whatever was countiing when the file ends
+        // Special case for writing whatever was counting when the file ends
         writeCompressionRes(charCount, prevChar);
     }
     return 0;

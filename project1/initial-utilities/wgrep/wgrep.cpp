@@ -1,4 +1,5 @@
 #include <string>
+#include <string.h>
 #include <fcntl.h>
 #include <sstream>
 #include <unistd.h> // For stdout and stdin macros

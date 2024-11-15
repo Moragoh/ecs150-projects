@@ -4,7 +4,7 @@
 #define UFS_DIRECTORY (0)
 #define UFS_REGULAR_FILE (1)
 
-#define UFS_ROOT_DIRECTORY_INODE_NUMBER (0)
+#define UFS_ROOT_DIRECTORY_INODE_NUMBER (0) // Start by reading 0
 #define UFS_BLOCK_SIZE (4096) // 4kB = 4 * 1024 bits. K iks kibi is 1024 bytes here
 #define DIRECT_PTRS (30) // No indirect poiners
 

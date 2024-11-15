@@ -19,8 +19,11 @@ Disk::Disk(string imageFile, int blockSize) {
   this->blockSize = blockSize;
 
   struct stat stat;
-  int imageFileDescriptor = open(imageFile.c_str(), O_RDONLY);
-  if (imageFileDescriptor < 0) {
+  int imageFileDescriptor = open(imageFile.c_str(), O_RDONLY); // Opens image
+
+  // Cjecls soze
+  if (imageFileDescriptor < 0)
+  {
     cerr << "could not open " << imageFile << endl;
     exit(1);
   }
@@ -47,6 +50,7 @@ int Disk::numberOfBlocks() {
   return this->imageFileSize / this->blockSize;
 }
 
+// Reads from blockNumber and returns it in buffer.
 void Disk::readBlock(int blockNumber, void *buffer) {
   if (blockNumber < 0 || blockNumber > this->numberOfBlocks()) {
     cerr << "Invalid block number " << blockNumber << endl;

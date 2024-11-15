@@ -13,6 +13,7 @@ LocalFileSystem::LocalFileSystem(Disk *disk) {
   this->disk = disk;
 }
 
+// Read super block and allocate the structure accordingly
 void LocalFileSystem::readSuperBlock(super_t *super) {
 
 }

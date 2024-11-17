@@ -20,7 +20,8 @@ Disk::Disk(string imageFile, int blockSize)
 {
   this->imageFile = imageFile;
   this->blockSize = blockSize;
-
+  this->isInTransaction = false;
+  
   struct stat stat;
   int imageFileDescriptor = open(imageFile.c_str(), O_RDONLY); // Opens image
 

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstring>
 #include <string>
 #include <vector>
 #include <assert.h>
@@ -16,6 +17,11 @@ LocalFileSystem::LocalFileSystem(Disk *disk)
 // Read super block and allocate the structure accordingly
 void LocalFileSystem::readSuperBlock(super_t *super)
 {
+  void *buffer = malloc(UFS_BLOCK_SIZE);
+  disk->readBlock(0, buffer); // Superblock obtained
+
+  memcpy(super, buffer, sizeof(super_t));
+  free(buffer);
 }
 
 void LocalFileSystem::readInodeBitmap(super_t *super, unsigned char *inodeBitmap)
@@ -53,8 +59,8 @@ int LocalFileSystem::lookup(int parentInodeNumber, string name)
 int LocalFileSystem::stat(int inodeNumber, inode_t *inode)
 {
   // readSuperBlock in to initialize a super object
-  // Use inodebitmap to check 
-  // Use readinoderegion to populate inode 
+  // Use inodebitmap to check
+  // Use readinoderegion to populate inode
   // Outisde of the function in ds3ls, can get info about inode by doing inode.size
   // you could do that, i just used stat which in turn used readsuperblock, readinodebitmap and readinoderegion
   return 0;

@@ -14,7 +14,10 @@
 
 using namespace std;
 
-Disk::Disk(string imageFile, int blockSize) {
+// I believe there is a bug with the starter code provided in Disk.cpp. There is a private boolean member variable named isInTransaction for synchronization purposes. This variable is not explicitly initialized in the constructor, which leads to possibilities of it being "true" (non-zero) even without calling disk->beginTransaction(). If you run into issues with memory leaks, try adding disk->commit() or disk->rollback() right after the creation of the disk object and it should solve the aforementioned issue
+
+Disk::Disk(string imageFile, int blockSize)
+{
   this->imageFile = imageFile;
   this->blockSize = blockSize;
 
@@ -28,51 +31,58 @@ Disk::Disk(string imageFile, int blockSize) {
     exit(1);
   }
   int ret = fstat(imageFileDescriptor, &stat);
-  if (ret != 0) {
+  if (ret != 0)
+  {
     cerr << "Could not stat image file" << endl;
     exit(1);
   }
   close(imageFileDescriptor);
-  
+
   this->imageFileSize = stat.st_size;
 
-  if ((this->imageFileSize % this->blockSize) != 0 || this->blockSize == 0) {
+  if ((this->imageFileSize % this->blockSize) != 0 || this->blockSize == 0)
+  {
     cerr << "Your disk image size must be a multiple of your block size" << endl;
     cerr << "  imageSize: " << this->imageFileSize << endl;
     cerr << "  blockSize: " << this->blockSize << endl;
     cerr << "  imageSize % blockSize: " << this->imageFileSize % this->blockSize << endl;
     exit(1);
   }
-  
 }
 
-int Disk::numberOfBlocks() {
+int Disk::numberOfBlocks()
+{
   return this->imageFileSize / this->blockSize;
 }
 
 // Reads from blockNumber and returns it in buffer.
-void Disk::readBlock(int blockNumber, void *buffer) {
-  if (blockNumber < 0 || blockNumber > this->numberOfBlocks()) {
+void Disk::readBlock(int blockNumber, void *buffer)
+{
+  if (blockNumber < 0 || blockNumber > this->numberOfBlocks())
+  {
     cerr << "Invalid block number " << blockNumber << endl;
     exit(1);
   }
 
   int fd = open(this->imageFile.c_str(), O_RDONLY);
-  if (fd < 0) {
+  if (fd < 0)
+  {
     cerr << "Could not open image file " << this->imageFile << endl;
     exit(1);
   }
 
   int offset = blockNumber * this->blockSize;
   int ret = lseek(fd, offset, SEEK_SET);
-  if (ret != offset) {
+  if (ret != offset)
+  {
     perror("read::lseek");
     cerr << "Could not seek to file" << endl;
     exit(1);
   }
 
   ret = read(fd, buffer, this->blockSize);
-  if (ret != this->blockSize) {
+  if (ret != this->blockSize)
+  {
     cerr << "Could not read file" << endl;
     exit(1);
   }
@@ -80,36 +90,42 @@ void Disk::readBlock(int blockNumber, void *buffer) {
   close(fd);
 }
 
-void Disk::writeBlock(int blockNumber, void *buffer) {  
-  if (blockNumber < 0 || blockNumber > this->numberOfBlocks()) {
+void Disk::writeBlock(int blockNumber, void *buffer)
+{
+  if (blockNumber < 0 || blockNumber > this->numberOfBlocks())
+  {
     cerr << "Invalid block number " << blockNumber << endl;
     exit(1);
   }
 
-  if (isInTransaction) {
+  if (isInTransaction)
+  {
     struct UndoRecord undoRecord;
     undoRecord.blockNumber = blockNumber;
     undoRecord.blockData = new unsigned char[blockSize];
     this->readBlock(blockNumber, undoRecord.blockData);
     undoLog.push_front(undoRecord);
   }
-  
+
   int fd = open(this->imageFile.c_str(), O_RDWR);
-  if (fd < 0) {
+  if (fd < 0)
+  {
     cerr << "Could not open image file " << this->imageFile << endl;
     exit(1);
   }
 
   int offset = blockNumber * this->blockSize;
   int ret = lseek(fd, offset, SEEK_SET);
-  if (ret != offset) {
+  if (ret != offset)
+  {
     perror("write::lseek");
     cerr << "Could not seek to file" << endl;
     exit(1);
   }
 
   ret = write(fd, buffer, this->blockSize);
-  if (ret != this->blockSize) {
+  if (ret != this->blockSize)
+  {
     cerr << "Could not write file" << endl;
     exit(1);
   }
@@ -117,29 +133,35 @@ void Disk::writeBlock(int blockNumber, void *buffer) {
   close(fd);
 }
 
-void Disk::beginTransaction() {
-  if (isInTransaction) {
+void Disk::beginTransaction()
+{
+  if (isInTransaction)
+  {
     cerr << "You can't start a new transaction: one already exists" << endl;
     exit(1);
   }
   isInTransaction = true;
 }
 
-void Disk::commit() {
+void Disk::commit()
+{
   isInTransaction = false;
   deque<struct UndoRecord>::iterator iter;
-  for (iter = undoLog.begin(); iter != undoLog.end(); iter++) {
-    delete [] iter->blockData;
+  for (iter = undoLog.begin(); iter != undoLog.end(); iter++)
+  {
+    delete[] iter->blockData;
   }
   undoLog.clear();
 }
 
-void Disk::rollback() {
+void Disk::rollback()
+{
   isInTransaction = false;
   deque<struct UndoRecord>::iterator iter;
-  for (iter = undoLog.begin(); iter != undoLog.end(); iter++) {
+  for (iter = undoLog.begin(); iter != undoLog.end(); iter++)
+  {
     this->writeBlock(iter->blockNumber, iter->blockData);
-    delete [] iter->blockData;
+    delete[] iter->blockData;
   }
   undoLog.clear();
 }

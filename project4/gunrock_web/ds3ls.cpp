@@ -35,6 +35,13 @@ int main(int argc, char *argv[])
   LocalFileSystem *fileSystem = new LocalFileSystem(disk); // Use func from this after they are implemented
   string directory = string(argv[2]);
 
+  super_t *super = new super_t;
+  fileSystem->readSuperBlock(super);
+
+  // Deallocate to avoid issues
+  delete super;
+  delete disk;
+  delete fileSystem;
   // // TODO
 
   // // Go to disk and read contents of superblock (block num 0)

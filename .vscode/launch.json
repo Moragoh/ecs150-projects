@@ -29,7 +29,7 @@
             "program": "${workspaceRoot}/solutions/project4/gunrock_web/ds3mkdir",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceRoot}/solutions/project4/gunrock_web",
+            "cwd": "${workspaceRoot}/project4/gunrock_web",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
@@ -110,10 +110,10 @@
             "name": "GDB ds3ls",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceRoot}/solutions/project4/gunrock_web/ds3ls",
+            "program": "${workspaceRoot}/project4/gunrock_web/ds3ls",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceRoot}/solutions/project4/gunrock_web",
+            "cwd": "${workspaceRoot}/project4/gunrock_web",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
@@ -127,7 +127,7 @@
             "miDebuggerServerAddress": "localhost:1234",
             "miDebuggerPath": "/usr/bin/gdb"
         },
-	{
+        {
             "name": "GDB ds3cat",
             "type": "cppdbg",
             "request": "launch",

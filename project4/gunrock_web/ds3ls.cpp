@@ -38,40 +38,16 @@ int main(int argc, char *argv[])
   super_t *super = new super_t;
   fileSystem->readSuperBlock(super);
 
+  unsigned char *inodeBitmap = (unsigned char *)malloc(super->inode_bitmap_len * UFS_BLOCK_SIZE);
+  fileSystem->readInodeBitmap(super, inodeBitmap);
+
+  cout << (int)inodeBitmap[1] << endl;
+  free(inodeBitmap);
+
   // Deallocate to avoid issues
   delete super;
   delete disk;
   delete fileSystem;
-  // // TODO
-
-  // // Go to disk and read contents of superblock (block num 0)
-  // /*
-  //   How to read inode numbers:
-  //   Get the block num by: (inum + sizeof(inode_)) / blockSize
-  //   Then allocate a buffer that can accomodate a block
-  //   Then use inode index by doing inum % blockInodeCount and access it
-  // */
-  // int inum = 0; // Placeholder
-  // int blockInodeCount = UFS_BLOCK_SIZE / sizeof(inode_t);
-  // inode_t blockBuffer[blockInodeCount];
-
-  // // super_t super;
-  // // int inodeTableStart = super.inode_region_addr;
-  // // int blockOffset = (sizeof(inode_t) * inum) / UFS_BLOCK_SIZE;
-  // // int blockNum = blockOffset + inodeTableStart;
-
-  // disk->readBlock(0, blockBuffer);
-
-  // int withinBlockInodeNum = inum % blockInodeCount;
-  // inode_t inode = blockBuffer[0]; // Inode for that inum retrived. Now we can get metadata from this
-
-  // cout << inode.type;
-
-  // At this point we have a number of inodes
-
-  // Get inode block start location
-  // Read inode (first of which should be root directory)
-  // Iterate thru direct pointers
 
   return 0;
 }

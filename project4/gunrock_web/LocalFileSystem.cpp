@@ -26,7 +26,24 @@ void LocalFileSystem::readSuperBlock(super_t *super)
 
 void LocalFileSystem::readInodeBitmap(super_t *super, unsigned char *inodeBitmap)
 {
-  // Check if inode is written to
+  // Take super objectm, which will have already been obtained from readSuperBlock
+  // from super block, get the start address of inode bitmap and length
+  // Allocate memmory for the bitmap by length * UFS_BLOCK_SIZE
+  // memcpy into type int* array
+  // Inode bitmap can now be ready like a usual array
+
+  int mapStart = super->inode_bitmap_addr;
+  int mapLength = super->inode_bitmap_len;
+
+  // disk->readBlock(start of inode map, buffer); // Superblock obtained
+
+  for (int i = 0; i < mapLength; i++)
+  {
+    void *buffer = malloc(UFS_BLOCK_SIZE);
+    disk->readBlock(mapStart + i, buffer); // Read current block of bitmap
+    memcpy(inodeBitmap + i * UFS_BLOCK_SIZE, buffer, UFS_BLOCK_SIZE);
+    free(buffer);
+  }
 }
 
 void LocalFileSystem::writeInodeBitmap(super_t *super, unsigned char *inodeBitmap)

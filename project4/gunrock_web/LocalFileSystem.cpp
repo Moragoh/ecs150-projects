@@ -2,6 +2,8 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <bitset>
+#include <algorithm>
 #include <assert.h>
 
 #include "LocalFileSystem.h"
@@ -27,6 +29,7 @@ void LocalFileSystem::readSuperBlock(super_t *super)
   free(buffer);
 }
 
+// Each index is a byte, which represents 8 inodes
 void LocalFileSystem::readInodeBitmap(super_t *super, unsigned char *inodeBitmap)
 {
   // Take super object, which will have already been obtained from readSuperBlock
@@ -46,9 +49,6 @@ void LocalFileSystem::readInodeBitmap(super_t *super, unsigned char *inodeBitmap
     memcpy(inodeBitmap + i * UFS_BLOCK_SIZE, buffer, UFS_BLOCK_SIZE);
   }
   free(buffer);
-
-  // Interpreting bitmap: each index is a byte (2 hex decimals). Convert to binary then reverse string to read.
-  // Reading bitmap: Take inode // 8 to get which byte to read. inode // 8 to get which index to read.
 }
 
 void LocalFileSystem::writeInodeBitmap(super_t *super, unsigned char *inodeBitmap)
@@ -78,11 +78,23 @@ void LocalFileSystem::readInodeRegion(super_t *super, inode_t *inodes)
   int regionStart = super->inode_region_addr;
   int regionLength = super->inode_region_len;
 
-  void *buffer = malloc(UFS_BLOCK_SIZE);
+  char *buffer = (char *)malloc(UFS_BLOCK_SIZE);
   for (int i = 0; i < regionLength; i++)
   {
     disk->readBlock(regionStart + i, buffer);
-    memcpy(inodes + i * UFS_BLOCK_SIZE, buffer, UFS_BLOCK_SIZE);
+    // Block obtained. Now we need to read by inode from the block
+    int inodesPerBlock = UFS_BLOCK_SIZE / sizeof(inode_t);
+
+    for (int j = 0; j < inodesPerBlock; j++)
+    {
+      // Get where inode needs to be copied from
+      void *inodeStart = buffer + (j * sizeof(inode_t));
+
+      // Get the position in the inodes array it should be copied to
+      // inodes is chunked in inode_t and not bytes
+      void *dest = inodes + (i * inodesPerBlock) + j;
+      memcpy(dest, inodeStart, sizeof(inode_t));
+    }
   }
   free(buffer);
   /*
@@ -118,7 +130,22 @@ int LocalFileSystem::stat(int inodeNumber, inode_t *inode)
   inode_t *inodes = new inode_t[super_global->inode_region_len * UFS_BLOCK_SIZE];
   readInodeRegion(super_global, inodes);
 
-  if (inodeBitmap[inodeNumber] == 0)
+  // Interpreting bitmap: each index is a byte (2 hex decimals). Convert to binary then reverse string to read.
+  // Reading bitmap: Take inode // 8 to get which byte to read. inode // 8 to get which index to read.
+  int byteToRead = inodeNumber / 8;
+  int byteInDec = (int)inodeBitmap[byteToRead];
+  string byteInBin = bitset<8>(byteInDec).to_string();
+
+  // Reverse string to follow the project's structure
+  reverse(byteInBin.begin(), byteInBin.end());
+  cout << byteInBin << endl;
+  int byteOffset = inodeNumber % 8;
+  cout << byteOffset << endl;
+
+  char status = byteInBin[byteOffset];
+  cout << "Status:" << status << endl;
+  // TODO: Need to unpack the inodebitmap
+  if (status == '0')
   {
     cerr << "Inode number is null" << endl;
     free(inodeBitmap);

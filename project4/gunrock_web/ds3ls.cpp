@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
   string directory = string(argv[2]);
 
   inode_t *test = new inode_t;
-  fileSystem->stat(1, test);
+  fileSystem->stat(0, test);
 
   delete test;
   // super_t *super = new super_t;

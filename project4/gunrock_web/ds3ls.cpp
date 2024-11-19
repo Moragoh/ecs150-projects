@@ -35,17 +35,32 @@ int main(int argc, char *argv[])
   LocalFileSystem *fileSystem = new LocalFileSystem(disk); // Use func from this after they are implemented
   string directory = string(argv[2]);
 
-  super_t *super = new super_t;
-  fileSystem->readSuperBlock(super);
+  inode_t *test = new inode_t;
+  fileSystem->stat(1, test);
 
-  unsigned char *inodeBitmap = (unsigned char *)malloc(super->inode_bitmap_len * UFS_BLOCK_SIZE);
-  fileSystem->readInodeBitmap(super, inodeBitmap);
+  delete test;
+  // super_t *super = new super_t;
+  // fileSystem->readSuperBlock(super);
 
-  cout << (int)inodeBitmap[1] << endl;
-  free(inodeBitmap);
+  // unsigned char *inodeBitmap = (unsigned char *)malloc(super->inode_bitmap_len * UFS_BLOCK_SIZE);
+  // fileSystem->readInodeBitmap(super, inodeBitmap);
+
+  // unsigned char *dataBitmap = (unsigned char *)malloc(super->data_bitmap_len * UFS_BLOCK_SIZE);
+  // fileSystem->readDataBitmap(super, dataBitmap);
+  // cout << (int)inodeBitmap[0] << endl;
+
+  // cout << (int)dataBitmap[1] << endl;
+  // free(inodeBitmap);
+  // free(dataBitmap);
+
+  // inode_t *inodes = new inode_t[super->inode_region_len * UFS_BLOCK_SIZE];
+  // // inode_t inodeRegion[super->inode_region_len * UFS_BLOCK_SIZE];
+  // fileSystem->readInodeRegion(super, inodes);
+  // cout << inodes[0].direct << endl;
 
   // Deallocate to avoid issues
-  delete super;
+  // delete[] inodes;
+  // delete super;
   delete disk;
   delete fileSystem;
 

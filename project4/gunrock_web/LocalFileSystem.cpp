@@ -129,7 +129,7 @@ void LocalFileSystem::writeInodeRegion(super_t *super, inode_t *inodes)
  */
 int LocalFileSystem::lookup(int parentInodeNumber, string name)
 {
-  // Use stat to 
+  // Use stat to
   return 0;
 }
 
@@ -218,10 +218,10 @@ int LocalFileSystem::read(int inodeNumber, void *buffer, int size)
 
   // By this point, buffer is filled with the data that the inode's direct pointer's point to
 
-  // if (inodeType == 0)
-  // {
-  //   cout << ((dir_ent_t *)buffer)[2].name << endl;
-  // }
+  if (inodeType == 0)
+  {
+    cout << ((dir_ent_t *)buffer)[2].name << endl;
+  }
   // else
   // {
   // }

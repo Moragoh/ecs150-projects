@@ -36,6 +36,8 @@ int main(int argc, char *argv[])
 
   inode_t *test = new inode_t;
   void *buffer[UFS_BLOCK_SIZE];
+
+  // Inode 0 is the root directory node
   fileSystem->read(2, buffer, UFS_BLOCK_SIZE);
 
   delete test;

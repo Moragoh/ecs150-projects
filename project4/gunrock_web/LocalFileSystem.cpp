@@ -116,8 +116,20 @@ void LocalFileSystem::writeInodeRegion(super_t *super, inode_t *inodes)
 {
 }
 
+/**
+ * Lookup an inode.
+ *
+ * Takes the parent inode number (which should be the inode number
+ * of a directory) and looks up the entry name in it. The inode
+ * number of name is returned.
+ *
+ * Success: return inode number of name
+ * Failure: return -ENOTFOUND, -EINVALIDINODE.
+ * Failure modes: invalid parentInodeNumber, name does not exist.
+ */
 int LocalFileSystem::lookup(int parentInodeNumber, string name)
 {
+  // Use stat to 
   return 0;
 }
 
@@ -158,24 +170,16 @@ int LocalFileSystem::stat(int inodeNumber, inode_t *inode)
   return 0;
 }
 
-/**
- * Read the contents of a file or directory.
- *
- * Reads up to `size` bytes of data into the buffer from file specified by
- * inodeNumber. The routine should work for either a file or directory;
- * directories should return data in the format specified by dir_ent_t.
- *
- * Success: number of bytes read
- * Failure: -EINVALIDINODE, -EINVALIDSIZE.
- * Failure modes: invalid inodeNumber, invalid size.
- */
 int LocalFileSystem::read(int inodeNumber, void *buffer, int size)
 {
+  if (size < 0)
+  {
+    return -EINVALIDSIZE;
+  }
+
   // Given inodeNum, retrieve through stat
   inode_t *inode = new inode_t;
   stat(inodeNumber, inode);
-
-  cout << inode->type << endl;
 
   // Get size of inode's file
   int fileSize = inode->size;
@@ -212,23 +216,18 @@ int LocalFileSystem::read(int inodeNumber, void *buffer, int size)
   }
   free(tempBuffer);
 
-  // By this point, buffer should be filled
-  if (inodeType == 0)
-  {
-    cout << ((dir_ent_t *)buffer)[2].name << endl;
-  }
-  // remaining = size
-  // while remaining > 4096:
-  // directNum = remaining // 4096
-  // blockNum = direct[directNum]
-  // read(blockNum) // Data retrieved
-  // inodeSize is the amount of data that inode holds, not the size of the inode.
-  // amountToCopy = min(size, bytesRead)
-  // memcpy blockBuffer into buffer with size
-  // return bytesRead
+  // By this point, buffer is filled with the data that the inode's direct pointer's point to
+
+  // if (inodeType == 0)
+  // {
+  //   cout << ((dir_ent_t *)buffer)[2].name << endl;
+  // }
+  // else
+  // {
+  // }
+  return resultDest;
 
   //  TODO: IF INCOMPLETE READ, SHOULD IT ONLY RETURN COMPLETE DIR OBJECTS?
-  return 0;
 }
 
 int LocalFileSystem::create(int parentInodeNumber, int type, string name)

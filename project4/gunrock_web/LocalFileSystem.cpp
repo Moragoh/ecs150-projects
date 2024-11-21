@@ -138,12 +138,9 @@ int LocalFileSystem::stat(int inodeNumber, inode_t *inode)
 
   // Reverse string to follow the project's structure
   reverse(byteInBin.begin(), byteInBin.end());
-  cout << byteInBin << endl;
   int byteOffset = inodeNumber % 8;
-  cout << byteOffset << endl;
 
   char status = byteInBin[byteOffset];
-  cout << "Status:" << status << endl;
   // TODO: Need to unpack the inodebitmap
   if (status == '0')
   {
@@ -155,7 +152,6 @@ int LocalFileSystem::stat(int inodeNumber, inode_t *inode)
   else
   {
     *inode = inodes[inodeNumber];
-    cout << "Inode type" << inode->type << endl;
   }
   free(inodeBitmap);
   delete[] inodes;
@@ -178,6 +174,8 @@ int LocalFileSystem::read(int inodeNumber, void *buffer, int size)
   // Given inodeNum, retrieve through stat
   inode_t *inode = new inode_t;
   stat(inodeNumber, inode);
+
+  cout << inode->type << endl;
 
   // Get size of inode's file
   int fileSize = inode->size;
@@ -215,8 +213,10 @@ int LocalFileSystem::read(int inodeNumber, void *buffer, int size)
   free(tempBuffer);
 
   // By this point, buffer should be filled
-  cout << ((dir_ent_t *)buffer)[0].name << endl;
-
+  if (inodeType == 0)
+  {
+    cout << ((dir_ent_t *)buffer)[2].name << endl;
+  }
   // remaining = size
   // while remaining > 4096:
   // directNum = remaining // 4096

@@ -35,7 +35,8 @@ int main(int argc, char *argv[])
   string directory = string(argv[2]);
 
   inode_t *test = new inode_t;
-  fileSystem->read(0, buffer, UFS_BLOCK_SIZE);
+  void *buffer[UFS_BLOCK_SIZE];
+  fileSystem->read(2, buffer, UFS_BLOCK_SIZE);
 
   delete test;
   delete disk;

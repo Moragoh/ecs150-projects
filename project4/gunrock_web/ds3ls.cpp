@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
   // // Inode 0 is the root directory node
   // fileSystem->read(1, buffer, UFS_BLOCK_SIZE);
 
-  fileSystem->lookup(3, "test");
+  fileSystem->lookup(0, "a");
 
   delete test;
   delete disk;

@@ -116,28 +116,13 @@ void LocalFileSystem::writeInodeRegion(super_t *super, inode_t *inodes)
 {
 }
 
-/**
- * Lookup an inode.
- *
- * Takes the parent inode number (which should be the inode number
- * of a directory) and looks up the entry name in it. The inode
- * number of name is returned.
- *
- * Success: return inode number of name
- * Failure: return -ENOTFOUND, -EINVALIDINODE.
- * Failure modes: invalid parentInodeNumber, name does not exist.
- */
 int LocalFileSystem::lookup(int parentInodeNumber, string name)
 {
-  // Use stat to look up inode
-  // Check if inode is a directory
-  // If it is, read its pointers
-  // Iterate through what read() returns and do a search through its names
-  // if name matches, return, otherwise ENOTFOUND
   inode_t *inode = new inode_t;
   int ret = stat(parentInodeNumber, inode);
   if (ret == -EINVALIDINODE)
   {
+    delete inode;
     return -EINVALIDINODE;
   }
 
@@ -145,6 +130,7 @@ int LocalFileSystem::lookup(int parentInodeNumber, string name)
   if (inode->type != 0)
   {
     cerr << "Given parent inode is not a directory" << endl;
+    delete inode;
     return -EINVALIDINODE;
   }
 
@@ -158,14 +144,29 @@ int LocalFileSystem::lookup(int parentInodeNumber, string name)
   dir_ent_t *dirBuffer = (dir_ent_t *)buffer;
   int entryCount = fileSize / sizeof(dir_ent_t);
 
-  cout << "Count:" << entryCount << endl;
-
-  // Iterate through entryCount and print out the name
+  int res = 0;
+  // Iterate through entryCount and compare the name
   for (int i = 0; i < entryCount; i++)
   {
-    cout << dirBuffer[i].name << endl;
+    char *fileName = (char *)dirBuffer[i].name;
+    cout << fileName << endl;
+    if (strcmp(name.c_str(), fileName) == 0)
+    {
+      // Strings match
+      res = 1;
+      delete inode;
+      cout << "Inode found:  " << dirBuffer[i].inum << endl;
+      return dirBuffer[i].inum;
+    }
   }
 
+  if (res == 0)
+  {
+    cerr << "Inode of that name is not found" << endl;
+    delete inode;
+    return -ENOTFOUND;
+  }
+  delete inode;
   return 0;
 }
 

@@ -16,7 +16,7 @@
 typedef struct {
     int type;   // UFS_DIRECTORY or UFS_REGULAR
     int size;   // bytes
-    unsigned int direct[DIRECT_PTRS];
+    unsigned int direct[DIRECT_PTRS]; // Each entry in direct is a block number
 } inode_t;
 // SUMMARY: Each inode has a type, size, and 30 direct pointers. 
 

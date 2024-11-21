@@ -155,28 +155,79 @@ int LocalFileSystem::stat(int inodeNumber, inode_t *inode)
   else
   {
     *inode = inodes[inodeNumber];
-    cout << "Inode size be the " << inode->size << endl;
+    cout << "Inode type" << inode->type << endl;
   }
   free(inodeBitmap);
   delete[] inodes;
   return 0;
-
-  // Takes in an array of inodes
-  // Looks up inode bit map to see if valid
-  // Throw error if not
-
-  // If valid, goes into inode region and retrieves the inode to populate the inode_t struct with
-
-  // readSuperBlock in to initialize a super object
-  // Use inodebitmap to check
-  // Use readinoderegion to populate inode
-  // Outisde of the function in ds3ls, can get info about inode by doing inode.size
-  // you could do that, i just used stat which in turn used readsuperblock, readinodebitmap and readinoderegion
-  return 0;
 }
 
+/**
+ * Read the contents of a file or directory.
+ *
+ * Reads up to `size` bytes of data into the buffer from file specified by
+ * inodeNumber. The routine should work for either a file or directory;
+ * directories should return data in the format specified by dir_ent_t.
+ *
+ * Success: number of bytes read
+ * Failure: -EINVALIDINODE, -EINVALIDSIZE.
+ * Failure modes: invalid inodeNumber, invalid size.
+ */
 int LocalFileSystem::read(int inodeNumber, void *buffer, int size)
 {
+  // Given inodeNum, retrieve through stat
+  inode_t *inode = new inode_t;
+  stat(inodeNumber, inode);
+
+  // Get size of inode's file
+  int fileSize = inode->size;
+  // Get type of inode
+  int inodeType = inode->type;
+
+  // if type isn directory, direct pointers point to dir_ent, so cast buffer into dir_ents
+  if (inodeType == 0)
+  {
+    // Directory
+    buffer = (dir_ent_t *)buffer;
+  }
+  // else keep as is.
+
+  // See which is bigger--size of inodeSize
+  int amountToRead = min(fileSize, size);
+  int remaining = amountToRead;
+  int blocksToIterate = amountToRead / UFS_BLOCK_SIZE; // Number of blocks this needs to iterate through
+  int resultDest = 0;                                  // Pos in resulting buffer to copy to
+
+  void *tempBuffer = malloc(UFS_BLOCK_SIZE);
+  for (int i = 0; i <= blocksToIterate; i++)
+  {
+    int blockNum = inode->direct[i];                     // Get the block number we must read from
+    disk->readBlock(blockNum, tempBuffer);               // Read in the whole block
+    int currCopyAmount = min(remaining, UFS_BLOCK_SIZE); // This allows us to only copy the part that we need from buffer
+
+    // Only copy the necessary bits (may be whole block or less than a block)
+    memcpy((char *)buffer + resultDest, tempBuffer, currCopyAmount);
+
+    // Update vars as needed
+    remaining -= currCopyAmount;
+    resultDest += currCopyAmount;
+  }
+  free(tempBuffer);
+
+  // By this point, buffer should be filled
+  cout << ((dir_ent_t *)buffer)[0].name << endl;
+
+  // remaining = size
+  // while remaining > 4096:
+  // directNum = remaining // 4096
+  // blockNum = direct[directNum]
+  // read(blockNum) // Data retrieved
+  // inodeSize is the amount of data that inode holds, not the size of the inode.
+  // amountToCopy = min(size, bytesRead)
+  // memcpy blockBuffer into buffer with size
+  // return bytesRead
+
+  //  TODO: IF INCOMPLETE READ, SHOULD IT ONLY RETURN COMPLETE DIR OBJECTS?
   return 0;
 }
 

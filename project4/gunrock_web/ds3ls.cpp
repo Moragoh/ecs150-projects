@@ -11,12 +11,11 @@
 
 using namespace std;
 
-/*
-  Use this function with std::sort for directory entries
-bool compareByName(const dir_ent_t& a, const dir_ent_t& b) {
-    return std::strcmp(a.name, b.name) < 0;
+// Use this function with std::sort for directory entries
+bool compareByName(const dir_ent_t &a, const dir_ent_t &b)
+{
+  return std::strcmp(a.name, b.name) < 0;
 }
-*/
 
 int main(int argc, char *argv[])
 {
@@ -36,31 +35,9 @@ int main(int argc, char *argv[])
   string directory = string(argv[2]);
 
   inode_t *test = new inode_t;
-  fileSystem->stat(0, test);
+  fileSystem->read(0, buffer, UFS_BLOCK_SIZE);
 
   delete test;
-  // super_t *super = new super_t;
-  // fileSystem->readSuperBlock(super);
-
-  // unsigned char *inodeBitmap = (unsigned char *)malloc(super->inode_bitmap_len * UFS_BLOCK_SIZE);
-  // fileSystem->readInodeBitmap(super, inodeBitmap);
-
-  // unsigned char *dataBitmap = (unsigned char *)malloc(super->data_bitmap_len * UFS_BLOCK_SIZE);
-  // fileSystem->readDataBitmap(super, dataBitmap);
-  // cout << (int)inodeBitmap[0] << endl;
-
-  // cout << (int)dataBitmap[1] << endl;
-  // free(inodeBitmap);
-  // free(dataBitmap);
-
-  // inode_t *inodes = new inode_t[super->inode_region_len * UFS_BLOCK_SIZE];
-  // // inode_t inodeRegion[super->inode_region_len * UFS_BLOCK_SIZE];
-  // fileSystem->readInodeRegion(super, inodes);
-  // cout << inodes[0].direct << endl;
-
-  // Deallocate to avoid issues
-  // delete[] inodes;
-  // delete super;
   delete disk;
   delete fileSystem;
 

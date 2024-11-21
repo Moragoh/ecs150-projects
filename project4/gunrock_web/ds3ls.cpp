@@ -35,10 +35,11 @@ int main(int argc, char *argv[])
   string directory = string(argv[2]);
 
   inode_t *test = new inode_t;
-  void *buffer[UFS_BLOCK_SIZE];
+  // void *buffer[UFS_BLOCK_SIZE];
+  // // Inode 0 is the root directory node
+  // fileSystem->read(1, buffer, UFS_BLOCK_SIZE);
 
-  // Inode 0 is the root directory node
-  fileSystem->read(2, buffer, UFS_BLOCK_SIZE);
+  fileSystem->lookup(3, "test");
 
   delete test;
   delete disk;

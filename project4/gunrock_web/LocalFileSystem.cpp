@@ -129,7 +129,43 @@ void LocalFileSystem::writeInodeRegion(super_t *super, inode_t *inodes)
  */
 int LocalFileSystem::lookup(int parentInodeNumber, string name)
 {
-  // Use stat to
+  // Use stat to look up inode
+  // Check if inode is a directory
+  // If it is, read its pointers
+  // Iterate through what read() returns and do a search through its names
+  // if name matches, return, otherwise ENOTFOUND
+  inode_t *inode = new inode_t;
+  int ret = stat(parentInodeNumber, inode);
+  if (ret == -EINVALIDINODE)
+  {
+    return -EINVALIDINODE;
+  }
+
+  // Not a directory
+  if (inode->type != 0)
+  {
+    cerr << "Given parent inode is not a directory" << endl;
+    return -EINVALIDINODE;
+  }
+
+  // Get the directory entries of parentInodeNumber
+  // Use inode.size to get the size for the read
+  int fileSize = inode->size;
+  void *buffer[fileSize];
+  read(parentInodeNumber, buffer, fileSize);
+
+  // buffer contains directory contents
+  dir_ent_t *dirBuffer = (dir_ent_t *)buffer;
+  int entryCount = fileSize / sizeof(dir_ent_t);
+
+  cout << "Count:" << entryCount << endl;
+
+  // Iterate through entryCount and print out the name
+  for (int i = 0; i < entryCount; i++)
+  {
+    cout << dirBuffer[i].name << endl;
+  }
+
   return 0;
 }
 
@@ -179,7 +215,11 @@ int LocalFileSystem::read(int inodeNumber, void *buffer, int size)
 
   // Given inodeNum, retrieve through stat
   inode_t *inode = new inode_t;
-  stat(inodeNumber, inode);
+  int ret = stat(inodeNumber, inode);
+  if (ret == -EINVALIDINODE)
+  {
+    return -EINVALIDINODE;
+  }
 
   // Get size of inode's file
   int fileSize = inode->size;
@@ -214,14 +254,15 @@ int LocalFileSystem::read(int inodeNumber, void *buffer, int size)
     remaining -= currCopyAmount;
     resultDest += currCopyAmount;
   }
+  delete (inode);
   free(tempBuffer);
 
   // By this point, buffer is filled with the data that the inode's direct pointer's point to
 
-  if (inodeType == 0)
-  {
-    cout << ((dir_ent_t *)buffer)[2].name << endl;
-  }
+  // if (inodeType == 0)
+  // {
+  //   cout << ((dir_ent_t *)buffer)[2].name << endl;
+  // }
   // else
   // {
   // }

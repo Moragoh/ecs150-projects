@@ -97,19 +97,6 @@ void LocalFileSystem::readInodeRegion(super_t *super, inode_t *inodes)
     }
   }
   free(buffer);
-  /*
-    int inode_bitmap_addr; // block address (in blocks)
-    int inode_bitmap_len;  // in blocks
-    int data_bitmap_addr;  // block address (in blocks)
-    int data_bitmap_len;   // in blocks
-    int inode_region_addr; // block address (in blocks)
-    int inode_region_len;  // in blocks
-    int data_region_addr;  // block address (in blocks)
-    int data_region_len;   // in blocks
-    int num_inodes;        // just the number of inodes
-    int num_data;          // and data blocks...
-} super_t;
-*/
 }
 
 void LocalFileSystem::writeInodeRegion(super_t *super, inode_t *inodes)
@@ -149,13 +136,13 @@ int LocalFileSystem::lookup(int parentInodeNumber, string name)
   for (int i = 0; i < entryCount; i++)
   {
     char *fileName = (char *)dirBuffer[i].name;
-    cout << fileName << endl;
+    // cout << fileName << endl;
     if (strcmp(name.c_str(), fileName) == 0)
     {
       // Strings match
       res = 1;
       delete inode;
-      cout << "Inode found:  " << dirBuffer[i].inum << endl;
+      // cout << "Inode found:  " << dirBuffer[i].inum << endl;
       return dirBuffer[i].inum;
     }
   }
@@ -245,7 +232,10 @@ int LocalFileSystem::read(int inodeNumber, void *buffer, int size)
   for (int i = 0; i <= blocksToIterate; i++)
   {
     int blockNum = inode->direct[i];                     // Get the block number we must read from
+
+    // TODO: Before readblock, check data region
     disk->readBlock(blockNum, tempBuffer);               // Read in the whole block
+
     int currCopyAmount = min(remaining, UFS_BLOCK_SIZE); // This allows us to only copy the part that we need from buffer
 
     // Only copy the necessary bits (may be whole block or less than a block)
@@ -258,17 +248,7 @@ int LocalFileSystem::read(int inodeNumber, void *buffer, int size)
   delete (inode);
   free(tempBuffer);
 
-  // By this point, buffer is filled with the data that the inode's direct pointer's point to
-
-  // if (inodeType == 0)
-  // {
-  //   cout << ((dir_ent_t *)buffer)[2].name << endl;
-  // }
-  // else
-  // {
-  // }
   return resultDest;
-
   //  TODO: IF INCOMPLETE READ, SHOULD IT ONLY RETURN COMPLETE DIR OBJECTS?
 }
 

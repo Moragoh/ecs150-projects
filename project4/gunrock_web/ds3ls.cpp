@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <vector>
 #include <algorithm>
 #include <cstring>
@@ -19,6 +20,7 @@ bool compareByName(const dir_ent_t &a, const dir_ent_t &b)
 
 int main(int argc, char *argv[])
 {
+
   if (argc != 3)
   {
     cerr << argv[0] << ": diskImageFile directory" << endl;
@@ -27,23 +29,89 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  // parse command line arguments
-
   // Utilities do not need the server--it is all local, so it will emulate the Disk and FileSystem
   Disk *disk = new Disk(argv[1], UFS_BLOCK_SIZE);
   LocalFileSystem *fileSystem = new LocalFileSystem(disk); // Use func from this after they are implemented
   string directory = string(argv[2]);
 
-  inode_t *test = new inode_t;
-  // void *buffer[UFS_BLOCK_SIZE];
-  // // Inode 0 is the root directory node
-  // fileSystem->read(1, buffer, UFS_BLOCK_SIZE);
+  cout << directory << endl;
 
-  fileSystem->lookup(0, "a");
+  // Use getline instead
+  stringstream dirStream(directory);
+  string nextName;
+  int currInodeNum;
+  int iterCount = 0;
 
-  delete test;
+  while (getline(dirStream, nextName, '/'))
+  {
+    cout << nextName << endl;
+    // Special case of when just / is inputted as path: should immediately go to printing our directories
+    if (iterCount == 0 && nextName == "")
+    {
+      // For handling root directory
+      currInodeNum = 0;
+    }
+    else
+    {
+      // Find inode num with the next name to search, and update once found
+      currInodeNum = fileSystem->lookup(currInodeNum, nextName);
+    }
+  }
+
+  // Directory num found by this point; time to print our directory contents
+  inode_t *target = new inode_t;
+  int ret = fileSystem->stat(currInodeNum, target);
+
+  // Check ret to return 1 with error string
+  if (ret == -EINVALIDINODE || ret == -EINVALIDSIZE)
+  {
+    delete target;
+    cerr << "Directory not found" << endl;
+    return 1;
+  }
+
+  // Otherwise print out contents
+  // Check if file or directory
+  if (target->type == 0)
+  {
+    // Directory, so print out entries
+    vector<dir_ent_t *> dirEnts;
+
+    // Collect directories
+    // Use inode.size to get the size for the read
+    int fileSize = target->size;
+    void *buffer[fileSize];
+    fileSystem->read(currInodeNum, buffer, fileSize); // read contents of currInodeNum *(inode num of target)
+
+    // Clear vector of entries
+    for (auto *ent : dirEnts)
+    {
+      delete ent;
+    }
+    dirEnts.clear();
+
+    //   // Buffer contains directory contents
+    //   dir_ent_t *dirBuffer = (dir_ent_t *)buffer;
+    //   int entryCount = fileSize / sizeof(dir_ent_t);
+
+    //   // Collect directory elements
+    //   for (int i = 0; i < entryCount; i++)
+    //   {
+    //     char *fileName = (char *)dirBuffer[i].name;
+    //     cout << fileName << endl;
+    //   }
+    // }
+    // else
+    // {
+    //   // File, so print out the name
+    //   // currInodeNum ius a file, so it does not know its name. May have to do a check during while loop
+    //   // cout << currInodeNum->name << endl;
+    //   cout << nextName << endl;
+  }
+
+  delete target;
+
   delete disk;
   delete fileSystem;
-
   return 0;
 }

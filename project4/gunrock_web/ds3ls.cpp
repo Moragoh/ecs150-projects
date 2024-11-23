@@ -34,8 +34,6 @@ int main(int argc, char *argv[])
   LocalFileSystem *fileSystem = new LocalFileSystem(disk); // Use func from this after they are implemented
   string directory = string(argv[2]);
 
-  cout << directory << endl;
-
   // Use getline instead
   stringstream dirStream(directory);
   string nextName;
@@ -44,7 +42,7 @@ int main(int argc, char *argv[])
 
   while (getline(dirStream, nextName, '/'))
   {
-    cout << nextName << endl;
+    // cout << nextName << endl;
     // Special case of when just / is inputted as path: should immediately go to printing our directories
     if (iterCount == 0 && nextName == "")
     {
@@ -74,8 +72,9 @@ int main(int argc, char *argv[])
   // Check if file or directory
   if (target->type == 0)
   {
+
     // Directory, so print out entries
-    vector<dir_ent_t *> dirEnts;
+    vector<dir_ent_t> dirEnts;
 
     // Collect directories
     // Use inode.size to get the size for the read
@@ -83,34 +82,31 @@ int main(int argc, char *argv[])
     void *buffer[fileSize];
     fileSystem->read(currInodeNum, buffer, fileSize); // read contents of currInodeNum *(inode num of target)
 
-    // Clear vector of entries
-    for (auto *ent : dirEnts)
+    // Buffer contains directory contents
+    dir_ent_t *dirBuffer = (dir_ent_t *)buffer;
+    int entryCount = fileSize / sizeof(dir_ent_t);
+
+    // Collect directory elements
+    for (int i = 0; i < entryCount; i++)
     {
-      delete ent;
+      // Append each entry to vector
+      dirEnts.push_back(dirBuffer[i]);
     }
-    dirEnts.clear();
 
-    //   // Buffer contains directory contents
-    //   dir_ent_t *dirBuffer = (dir_ent_t *)buffer;
-    //   int entryCount = fileSize / sizeof(dir_ent_t);
-
-    //   // Collect directory elements
-    //   for (int i = 0; i < entryCount; i++)
-    //   {
-    //     char *fileName = (char *)dirBuffer[i].name;
-    //     cout << fileName << endl;
-    //   }
-    // }
-    // else
+    // for (auto ent : dirEnts)
     // {
-    //   // File, so print out the name
-    //   // currInodeNum ius a file, so it does not know its name. May have to do a check during while loop
-    //   // cout << currInodeNum->name << endl;
-    //   cout << nextName << endl;
+    //   char *fileName = (char *)ent.name;
+    //   cout << fileName << endl;
+    // }
+  }
+  else
+  {
+    // File, so print out the name
+    // If it is a file, nextName would simply be its name
+    cout << currInodeNum << "\t" << nextName << endl;
   }
 
   delete target;
-
   delete disk;
   delete fileSystem;
   return 0;

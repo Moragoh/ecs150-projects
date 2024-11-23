@@ -59,6 +59,7 @@ int main(int argc, char *argv[])
   // Directory num found by this point; time to print our directory contents
   inode_t *target = new inode_t;
   int ret = fileSystem->stat(currInodeNum, target);
+
   // Check ret to return 1 with error string
   if (ret == -EINVALIDINODE || ret == -EINVALIDSIZE)
   {

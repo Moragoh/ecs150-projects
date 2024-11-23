@@ -59,11 +59,12 @@ int main(int argc, char *argv[])
   // Directory num found by this point; time to print our directory contents
   inode_t *target = new inode_t;
   int ret = fileSystem->stat(currInodeNum, target);
-
   // Check ret to return 1 with error string
   if (ret == -EINVALIDINODE || ret == -EINVALIDSIZE)
   {
     delete target;
+    delete disk;
+    delete fileSystem;
     cerr << "Directory not found" << endl;
     return 1;
   }
@@ -93,17 +94,22 @@ int main(int argc, char *argv[])
       dirEnts.push_back(dirBuffer[i]);
     }
 
-    // for (auto ent : dirEnts)
-    // {
-    //   char *fileName = (char *)ent.name;
-    //   cout << fileName << endl;
-    // }
+    // Sort entries by name
+    sort(dirEnts.begin(), dirEnts.end(), compareByName);
+
+    // Print relevant info
+    for (auto ent : dirEnts)
+    {
+      int inodeNum = ent.inum;
+      char *fileName = (char *)ent.name;
+      cout << inodeNum << "\t" << fileName << "\n";
+    }
   }
   else
   {
     // File, so print out the name
     // If it is a file, nextName would simply be its name
-    cout << currInodeNum << "\t" << nextName << endl;
+    cout << currInodeNum << "\t" << nextName << "\n";
   }
 
   delete target;

@@ -149,7 +149,7 @@ int LocalFileSystem::lookup(int parentInodeNumber, string name)
 
   if (res == 0)
   {
-    cerr << "Inode of that name is not found" << endl;
+    // cerr << "Inode of that name is not found" << endl;
     delete inode;
     return -ENOTFOUND;
   }
@@ -176,11 +176,12 @@ int LocalFileSystem::stat(int inodeNumber, inode_t *inode)
   reverse(byteInBin.begin(), byteInBin.end());
   int byteOffset = inodeNumber % 8;
 
-  char status = byteInBin[byteOffset];
+  int status = byteInBin[byteOffset];
   // TODO: Need to unpack the inodebitmap
-  if (status == '0')
+  // if (strcmp(status, "0") == 0)
+  if (status == 0)
   {
-    cerr << "Inode number is null" << endl;
+    // cerr << "Inode number is null" << endl;
     free(inodeBitmap);
     delete[] inodes;
     return -EINVALIDINODE;
@@ -231,10 +232,10 @@ int LocalFileSystem::read(int inodeNumber, void *buffer, int size)
   void *tempBuffer = malloc(UFS_BLOCK_SIZE);
   for (int i = 0; i <= blocksToIterate; i++)
   {
-    int blockNum = inode->direct[i];                     // Get the block number we must read from
+    int blockNum = inode->direct[i]; // Get the block number we must read from
 
     // TODO: Before readblock, check data region
-    disk->readBlock(blockNum, tempBuffer);               // Read in the whole block
+    disk->readBlock(blockNum, tempBuffer); // Read in the whole block
 
     int currCopyAmount = min(remaining, UFS_BLOCK_SIZE); // This allows us to only copy the part that we need from buffer
 

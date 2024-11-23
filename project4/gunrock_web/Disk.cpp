@@ -56,11 +56,8 @@ int Disk::numberOfBlocks()
   return this->imageFileSize / this->blockSize;
 }
 
-// Reads from blockNumber and returns it in buffer.
-void Disk::readBlock(int blockNumber, void *buffer)
-{
-  if (blockNumber < 0 || blockNumber > this->numberOfBlocks())
-  {
+void Disk::readBlock(int blockNumber, void *buffer) {
+  if (blockNumber < 0 || blockNumber >= this->numberOfBlocks()) {
     cerr << "Invalid block number " << blockNumber << endl;
     exit(1);
   }
@@ -91,10 +88,8 @@ void Disk::readBlock(int blockNumber, void *buffer)
   close(fd);
 }
 
-void Disk::writeBlock(int blockNumber, void *buffer)
-{
-  if (blockNumber < 0 || blockNumber > this->numberOfBlocks())
-  {
+void Disk::writeBlock(int blockNumber, void *buffer) {  
+  if (blockNumber < 0 || blockNumber >= this->numberOfBlocks()) {
     cerr << "Invalid block number " << blockNumber << endl;
     exit(1);
   }

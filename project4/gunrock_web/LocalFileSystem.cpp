@@ -176,10 +176,10 @@ int LocalFileSystem::stat(int inodeNumber, inode_t *inode)
   reverse(byteInBin.begin(), byteInBin.end());
   int byteOffset = inodeNumber % 8;
 
-  int status = byteInBin[byteOffset];
+  char status = byteInBin[byteOffset];
+  string statusStr(1, status);
   // TODO: Need to unpack the inodebitmap
-  // if (strcmp(status, "0") == 0)
-  if (status == 0)
+  if (statusStr != "1")
   {
     // cerr << "Inode number is null" << endl;
     free(inodeBitmap);

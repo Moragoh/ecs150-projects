@@ -51,7 +51,12 @@ int main(int argc, char *argv[])
 
   // Convert the file size to how many blocks of data it would require, then iterate through direct using that count
   int fileSize = inode->size;
-  int blockCount = fileSize / UFS_BLOCK_SIZE + 1;
+  int blockCount = fileSize / UFS_BLOCK_SIZE;
+  if ((fileSize % UFS_BLOCK_SIZE) != 0)
+  {
+    blockCount += 1;
+  }
+  
   for (int i = 0; i < blockCount; i++)
   {
     cout << inode->direct[i] << endl;

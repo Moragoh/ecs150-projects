@@ -273,7 +273,7 @@ int LocalFileSystem::read(int inodeNumber, void *buffer, int size)
 
   // Given inodeNum, retrieve through stat
   inode_t *inode = new inode_t;
-  int ret = stat(inodeNumber, inode);
+  int ret = stat(inodeNumber, inode); // If fileSize was 0, stat would have caught that because bitmap would have been marked
   if (ret == -EINVALIDINODE)
   {
     return -EINVALIDINODE;
@@ -405,9 +405,9 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
 
       // Clear out block
       disk->writeBlock(blockNum, emptyBuffer);
-
+      cout << "Emptied out block" << endl;
       // Updating inode size
-      changeInodeSize(inodeNumber, 0, *this);
+      changeInodeSize(inodeNumber, 20, *this);
 
       // Write to block
     }

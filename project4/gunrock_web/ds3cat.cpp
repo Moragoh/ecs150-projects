@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
   // Convert the file size to how many blocks of data it would require, then iterate through direct using that count
   int fileSize = inode->size;
 
-  cout << "Filesize" << fileSize << endl;
+  // cout << "Filesize" << fileSize << endl;
 
   int blockCount = fileSize / UFS_BLOCK_SIZE;
   if ((fileSize % UFS_BLOCK_SIZE) != 0)

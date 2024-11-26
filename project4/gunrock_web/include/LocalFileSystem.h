@@ -24,28 +24,29 @@
 // it will be considered correct.
 
 // the operation failed because there wasn't enough space on the disk
-#define ENOTENOUGHSPACE    (1)
+#define ENOTENOUGHSPACE (1)
 // Unlinking a directory that is _not_ empty
-#define EDIRNOTEMPTY       (2)
+#define EDIRNOTEMPTY (2)
 // The inode number is invalid
-#define EINVALIDINODE      (3)
+#define EINVALIDINODE (3)
 // The inode is valid but not allocated
-#define ENOTALLOCATED      (4)
+#define ENOTALLOCATED (4)
 // The `size` for a read or write is invalid
-#define EINVALIDSIZE       (5)
+#define EINVALIDSIZE (5)
 // Attempting to write to a directory
-#define EWRITETODIR        (6)
+#define EWRITETODIR (6)
 // Lookup an entity that does not exist
-#define ENOTFOUND          (7)
+#define ENOTFOUND (7)
 // Invalid name
-#define EINVALIDNAME       (8)
+#define EINVALIDNAME (8)
 // Creating an entity that exists with a different type or writing to a directory
-#define EINVALIDTYPE       (9)
+#define EINVALIDTYPE (9)
 // Unlinking '.' or '..'
-#define EUNLINKNOTALLOWED  (10)
+#define EUNLINKNOTALLOWED (10)
 
-class LocalFileSystem {
- public:
+class LocalFileSystem
+{
+public:
   LocalFileSystem(Disk *disk);
   /**
    * Lookup an inode.
@@ -71,7 +72,7 @@ class LocalFileSystem {
    * Failure modes: invalid inodeNumber
    */
   int stat(int inodeNumber, inode_t *inode);
-  
+
   /**
    * Makes a file or directory.
    *
@@ -126,7 +127,7 @@ class LocalFileSystem {
    * existing is NOT a failure by our definition. You can't unlink '.' or '..'
    */
   int unlink(int parentInodeNumber, std::string name);
-  
+
   /**
    * Some helper functions that you need to implement and use in your
    * implementation of the higher-level functions. When you operate on
@@ -142,11 +143,10 @@ class LocalFileSystem {
   void writeDataBitmap(super_t *super, unsigned char *dataBitmap);
   void readInodeRegion(super_t *super, inode_t *inodes);
   void writeInodeRegion(super_t *super, inode_t *inodes);
-
   // Normally we'd mark this as private but we expose it so that you can access
   // it in a function you add that is not part of the LocalFileSystem object but
   // can still access the disk.
   Disk *disk;
-};  
+};
 
 #endif

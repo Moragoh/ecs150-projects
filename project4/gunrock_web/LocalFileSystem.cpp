@@ -12,6 +12,26 @@
 using namespace std;
 super_t *super_global = new super_t;
 
+// Prepares inodes with the wanted changed for that specific inode and writes it back using writeBlock
+void changeInodeSize(int inum, int newSize, LocalFileSystem &fs)
+{
+  inode_t *inodes = (inode_t *)malloc(super_global->num_inodes * sizeof(inode_t));
+  inode_t *inode = new inode_t;
+  // Obtains current state of inodes. Now just have to replace it with inodes
+  fs.readInodeRegion(super_global, inodes);
+
+  // Use stat to get specific inode
+  fs.stat(inum, inode);
+  inode->size = newSize;
+
+  // Find where in inodes the inode specified by inum is
+  inodes[inum] = *inode;
+
+  fs.writeInodeRegion(super_global, inodes);
+  free(inodes);
+  delete inode;
+}
+
 LocalFileSystem::LocalFileSystem(Disk *disk)
 {
   this->disk = disk;
@@ -108,8 +128,48 @@ void LocalFileSystem::readInodeRegion(super_t *super, inode_t *inodes)
   free(buffer);
 }
 
+// Used for updating metadata
 void LocalFileSystem::writeInodeRegion(super_t *super, inode_t *inodes)
 {
+  // Use to persist changes to inodes. How? By preparing inodes with the wanted changes and using writeBlock
+  int size = super->num_inodes * sizeof(inode_t); // Number of bytes in inodes
+
+  int blockCount = size / UFS_BLOCK_SIZE;
+  if ((size % UFS_BLOCK_SIZE) != 0)
+  {
+    blockCount += 1;
+  }
+
+  int inodesPerBlock = UFS_BLOCK_SIZE / sizeof(inode_t);
+  char *tempBuffer = (char *)malloc(UFS_BLOCK_SIZE);
+  if (tempBuffer == NULL)
+  {
+    cerr << "Mem allocation failed" << endl;
+    exit(1);
+  }
+
+  for (int i = 0; i < blockCount; i++)
+  {
+    // Iterating through each inode of the ith block
+    for (int j = 0; j < inodesPerBlock; j++)
+    {
+      // Get where inode needs to be copied from
+      // inodes is in inode_t, so each count is the size of an inode_t (why we only add j)
+      void *inodeStart = inodes + i * inodesPerBlock + j; // decides which inode to copy from
+
+      // Copy the inode into the tempBuffer before using writeBlock©
+      void *dest = tempBuffer + (j * sizeof(inode_t));
+
+      // Copy one inode's worth of data into tempBuffer
+      memcpy(dest, inodeStart, sizeof(inode_t));
+    }
+    // Tempbuffer now holds one block's worth of inodes. Ready to be written in using writeBlock
+    disk->beginTransaction();
+    disk->writeBlock(super->inode_region_addr + i, tempBuffer);
+    disk->commit();
+  }
+
+  free(tempBuffer);
 }
 
 int LocalFileSystem::lookup(int parentInodeNumber, string name)
@@ -345,6 +405,11 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
 
       // Clear out block
       disk->writeBlock(blockNum, emptyBuffer);
+
+      // Updating inode size
+      changeInodeSize(inodeNumber, 0, *this);
+
+      // Write to block
     }
     free(emptyBuffer);
   }

@@ -25,7 +25,10 @@ int main(int argc, char *argv[])
   string directory = string(argv[3]);
 
   const char buffer[] = "file";
-  fileSystem->write(3, buffer, 10); // Should clear out
+  fileSystem->write(3, buffer, 10); // Should clear out and reset size
+
+  // Test inode region writing
+  // Prepares inodes with the wanted changed for that specific inode and writes it back using writeBlock
 
   // Call ds3bits to check it out
 

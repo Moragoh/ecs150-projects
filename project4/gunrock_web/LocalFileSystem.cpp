@@ -53,6 +53,8 @@ void LocalFileSystem::readInodeBitmap(super_t *super, unsigned char *inodeBitmap
 
 void LocalFileSystem::writeInodeBitmap(super_t *super, unsigned char *inodeBitmap)
 {
+  // inodeBitMap is the new bitmap you want to write
+  // memcpy inodeBitmap into the start of the bitmap (super->inodebitmap_start_addr)
 }
 
 void LocalFileSystem::readDataBitmap(super_t *super, unsigned char *dataBitmap)
@@ -71,6 +73,13 @@ void LocalFileSystem::readDataBitmap(super_t *super, unsigned char *dataBitmap)
 
 void LocalFileSystem::writeDataBitmap(super_t *super, unsigned char *dataBitmap)
 {
+  // How to prepare dataBitmap
+  // Use readMap to get map
+  // Use indexing logic (used in stat) to write specific one
+
+  // dataBitmap is the thing we want to write
+  // Get data map start addr
+  // Write block
 }
 
 void LocalFileSystem::readInodeRegion(super_t *super, inode_t *inodes)
@@ -239,7 +248,7 @@ int LocalFileSystem::read(int inodeNumber, void *buffer, int size)
 
     int currCopyAmount = min(remaining, UFS_BLOCK_SIZE); // This allows us to only copy the part that we need from buffer
 
-    // Only copy the necessary bits (may be whole block or less than a block)
+    // Only copy rethe necessary bits (may be whole block or less than a block)
     memcpy((char *)buffer + resultDest, tempBuffer, currCopyAmount);
 
     // Update vars as needed
@@ -258,12 +267,121 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
   return 0;
 }
 
+/**
+ * Write the contents of a file.
+ *
+ * Writes a buffer of size to the file, replacing any content that
+ * already exists.
+ *
+ * Success: number of bytes written
+ * Failure: -EINVALIDINODE, -EINVALIDSIZE, -EINVALIDTYPE.
+ * Failure modes: invalid inodeNumber, invalid size, not a regular file
+ * (because you can't write to directories).
+ */
 int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
 {
+  inode_t *inode = new inode_t;
+  int ret = stat(inodeNumber, inode);
+
+  /*ERROR CHECKING*/
+  // Check ret to return 1 with error string
+  if (ret == -EINVALIDINODE || ret == -EINVALIDSIZE)
+  {
+    // Invalid inode
+    delete inode;
+    //-EINVALIDINODE, -EINVALIDSIZE, -EINVALIDTYPE.
+    return -EINVALIDINODE;
+  }
+
+  if (size < 0)
+  {
+    delete inode;
+    return -EINVALIDTYPE;
+  }
+
+  if (inode->type == 0)
+  {
+    delete inode;
+    return -EINVALIDTYPE;
+  }
+
+  // Determine if new buffer is less than, the same, or more blocks
+  int fileSize = inode->size;
+  int currBlockCount = fileSize / UFS_BLOCK_SIZE;
+  if ((fileSize % UFS_BLOCK_SIZE) != 0)
+  {
+    currBlockCount += 1;
+  }
+
+  int newBlockCount = size / UFS_BLOCK_SIZE;
+  if ((size % UFS_BLOCK_SIZE) != 0)
+  {
+    newBlockCount += 1;
+  }
+
+  // Uses the same number of blocks
+  if (newBlockCount == currBlockCount)
+  {
+    // Iterate through direct and get the current blocks that are in use
+    vector<int> blocksInUse;
+    for (int i = 0; i < currBlockCount; i++)
+    {
+      // cout << inode->direct[i] << endl;
+      blocksInUse.push_back(inode->direct[i]);
+    }
+
+    // If block number same, all we have to do is foreach block, clear out and write
+    // then update inode size. Bitmap should remain the same
+    // int remaining = size;
+    // int copyAmount;
+    // int currPos = 0;
+
+    // Buffer of null values to use for emptying out the block
+    void *emptyBuffer = malloc(UFS_BLOCK_SIZE);
+
+    for (int i = 0; i < currBlockCount; i++)
+    {
+      int blockNum = blocksInUse[i];
+
+      // Clear out block
+      disk->writeBlock(blockNum, emptyBuffer);
+    }
+    free(emptyBuffer);
+  }
+
+  delete inode;
   return 0;
-}
+} // Convert the file size to how many blocks of data it would require, then iterate through direct using that count
+
+// When to use transaction?
+
+// First determine if the number of allocated blocks change or not
+// Get how many blocks current inode takes up
+// Get how many size would take up
+
+// Come up with 3 cases: same, more, less
+// Same
+// Get currentBlocks (current blocks in use from fileSize / block size) and then do inode->direct
+// Iterate through currentBlocks
+// Keep track of remaining. If remaining >= blockSize, copyAmount = blockSize. Else remaining
+// Make tempbuffer of blockSize
+
+// Before write, always ret = beginTransaction
+// if writeblock successful, commit it. Else rollback and therow error
+// if ret, then commit transaction. Else rollback
+
+// memcpy buffer into tempbuffer and writeBlock
+// Update bufferPos
+
+// To test: first check output, then ds3bits to see that they match
 
 int LocalFileSystem::unlink(int parentInodeNumber, string name)
 {
   return 0;
 }
+
+/*
+Things to test
+
+1. Delete -> Try to access inode and see if it throws error
+*/

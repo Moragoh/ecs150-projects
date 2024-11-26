@@ -8,8 +8,10 @@
 
 using namespace std;
 
-int main(int argc, char *argv[]) {
-  if (argc != 4) {
+int main(int argc, char *argv[])
+{
+  if (argc != 4)
+  {
     cerr << argv[0] << ": diskImageFile parentInode directory" << endl;
     cerr << "For example:" << endl;
     cerr << "    $ " << argv[0] << " a.img 0 a" << endl;
@@ -17,12 +19,18 @@ int main(int argc, char *argv[]) {
   }
 
   // Parse command line arguments
-  /*
   Disk *disk = new Disk(argv[1], UFS_BLOCK_SIZE);
   LocalFileSystem *fileSystem = new LocalFileSystem(disk);
-  int parentInode = stoi(argv[2]);
+  // int parentInode = stoi(argv[2]);
   string directory = string(argv[3]);
-  */
-  
+
+  const char buffer[] = "file";
+  fileSystem->write(3, buffer, 10); // Should clear out
+
+  // Call ds3bits to check it out
+
+  delete disk;
+  delete fileSystem;
+
   return 0;
 }

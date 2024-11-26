@@ -66,14 +66,6 @@ int main(int argc, char *argv[])
   }
   cout << "\n";
 
-  /*
-  data_region_addr 4
-  data_region_len 32
-  num_data 32
-
-  */
-
-  // Iterate throuhg
 
   free(inodeBitmap);
   free(dataBitmap);

@@ -24,8 +24,8 @@ int main(int argc, char *argv[])
   // int parentInode = stoi(argv[2]);
   string directory = string(argv[3]);
 
-  const char buffer[] = "file";
-  fileSystem->write(3, buffer, 10); // Should clear out and reset size
+  const char buffer[] = "Monterey is a grating noise";
+  fileSystem->write(3, buffer, sizeof(buffer)); // Should write to inode 3's data
 
   // Test inode region writing
   // Prepares inodes with the wanted changed for that specific inode and writes it back using writeBlock

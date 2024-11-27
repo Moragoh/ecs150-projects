@@ -379,9 +379,11 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     newBlockCount += 1;
   }
 
+  cout << "About to check if same\n";
   // Uses the same number of blocks
   if (newBlockCount == currBlockCount)
   {
+    cout << "Is same\n";
     // Iterate through direct and get the current blocks that are in use
     vector<int> blocksInUse;
     for (int i = 0; i < currBlockCount; i++)
@@ -392,25 +394,43 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
 
     // If block number same, all we have to do is foreach block, clear out and write
     // then update inode size. Bitmap should remain the same
-    // int remaining = size;
-    // int copyAmount;
-    // int currPos = 0;
+    int remaining = size;
+    int copyAmount;
 
     // Buffer of null values to use for emptying out the block
     void *emptyBuffer = malloc(UFS_BLOCK_SIZE);
-
+    memset(emptyBuffer, '\0', UFS_BLOCK_SIZE);
+    // Clear and write each block at a time
     for (int i = 0; i < currBlockCount; i++)
     {
+      // Determine how much to write: a full block's worth or less
+      if (remaining > UFS_BLOCK_SIZE)
+      {
+        copyAmount = UFS_BLOCK_SIZE;
+      }
+      else
+      {
+        copyAmount = remaining;
+      }
+
+      void *blockBuffer = malloc(UFS_BLOCK_SIZE);
+      // Copy the amound to write into the blockBuffer from the defined buffer
+      void *currBlockToCopy = (char *)buffer + i * UFS_BLOCK_SIZE; // Determines which block's worth of data from buffer should be copied in
+      memcpy(blockBuffer, currBlockToCopy, copyAmount);
+
+      // Reuse existing blokcs
       int blockNum = blocksInUse[i];
 
       // Clear out block
-      disk->writeBlock(blockNum, emptyBuffer);
-      cout << "Emptied out block" << endl;
-      // Updating inode size
-      changeInodeSize(inodeNumber, 20, *this);
+      disk->writeBlock(blockNum, emptyBuffer); // writeBlock must ALWAYS write a block at a time
 
-      // Write to block
+      // Write block with new data
+      disk->writeBlock(blockNum, blockBuffer);
+      remaining -= copyAmount;
+      free(blockBuffer);
     }
+    // Updating inode size
+    changeInodeSize(inodeNumber, size, *this);
     free(emptyBuffer);
   }
 

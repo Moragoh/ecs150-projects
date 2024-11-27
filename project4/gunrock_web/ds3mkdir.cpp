@@ -25,9 +25,8 @@ int main(int argc, char *argv[])
   string directory = string(argv[3]);
 
   const char buffer[] = "Monterey is a grating noise";
-
   // Writing less than works, but writing more does not?
-  fileSystem->write(3, buffer, 30);
+  fileSystem->write(3, buffer, 10);
 
   // Test inode region writing
   // Prepares inodes with the wanted changed for that specific inode and writes it back using writeBlock

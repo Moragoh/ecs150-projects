@@ -381,9 +381,10 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
 
   cout << "About to check if same\n";
   // Uses the same number of blocks
+  int total = 0;
   if (newBlockCount == currBlockCount)
   {
-    cout << "Is same\n";
+    // cout << "Is same\n";
     // Iterate through direct and get the current blocks that are in use
     vector<int> blocksInUse;
     for (int i = 0; i < currBlockCount; i++)
@@ -394,9 +395,10 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
 
     // If block number same, all we have to do is foreach block, clear out and write
     // then update inode size. Bitmap should remain the same
-    int remaining = size;
+    int remaining = min((long unsigned int)size, sizeof(buffer)); // Makes sure that only the buffer size is written if the specified size is bigger
+    int sizeToWrite = remaining;
+    // cout << "Amount to wrirte is " << remaining << endl;
     int copyAmount;
-
     // Buffer of null values to use for emptying out the block
     void *emptyBuffer = malloc(UFS_BLOCK_SIZE);
     memset(emptyBuffer, '\0', UFS_BLOCK_SIZE);
@@ -427,15 +429,16 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       // Write block with new data
       disk->writeBlock(blockNum, blockBuffer);
       remaining -= copyAmount;
+      total += copyAmount;
       free(blockBuffer);
     }
     // Updating inode size
-    changeInodeSize(inodeNumber, size, *this);
+    changeInodeSize(inodeNumber, sizeToWrite, *this);
     free(emptyBuffer);
   }
 
   delete inode;
-  return 0;
+  return total;
 } // Convert the file size to how many blocks of data it would require, then iterate through direct using that count
 
 // When to use transaction?

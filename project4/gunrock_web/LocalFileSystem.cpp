@@ -251,7 +251,6 @@ int LocalFileSystem::stat(int inodeNumber, inode_t *inode)
   // TODO: Need to unpack the inodebitmap
   if (statusStr != "1")
   {
-    // cerr << "Inode number is null" << endl;
     free(inodeBitmap);
     delete[] inodes;
     return -EINVALIDINODE;
@@ -390,8 +389,6 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     currBlockCount += 1;
   }
 
-  // CAUTION: IF INTENDED BEHAVIOR DIFFERENT (EX: ERROR SUPPOSE TO BE THROWN WHEN SIZE SUPER BIG, THIS MAY THROW AN ERROR)
-  // int sizeToWrite = min((long unsigned int)size, sizeof(buffer)); // Makes sure that only the buffer size is written if the specified size is bigger
   int sizeToWrite = size; // Makes sure that only the buffer size is written if the specified size is bigger
   int newBlockCount = sizeToWrite / UFS_BLOCK_SIZE;
   if ((size % UFS_BLOCK_SIZE) != 0)
@@ -479,7 +476,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
 
     for (int value : blocksToUse)
     {
-      cout << "OLD" << value << endl;
+      cout << "before adding" << value << endl;
     }
 
     /* FINDING NEW BLOCKS TO ALLOCATE*/
@@ -487,41 +484,44 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     // Read in data bitmap
     unsigned char *dataBitmap = (unsigned char *)malloc(super_global->data_bitmap_len * UFS_BLOCK_SIZE);
     readDataBitmap(super_global, dataBitmap);
+    /*
+    From here, we must find new blocks that can be used to fill the direct pointers with
+    Direct pointers. Direct points are in absoluate block numbers.
+    Start from block data_region_addr and iterate until data_region_addr + data_region_len.
+    For each i, look it up in the block bitmap to see if it is free.
+    Get bitToCheck = (i - data_region_len) // 8
+    Lookup bitmapInBytes[bitToCheck] to get the specific byte
+    Within byte, look up i % 8 from the right
+    */
 
-    string dataBinStr;
-    int numDataInBytes = super_global->num_data / 8;
-    // Getting the dataBitmap in a binary string
-    for (int i = 0; i < numDataInBytes; i++)
-    {
-      unsigned int byteValue = (unsigned int)dataBitmap[i];
-      string byteInStr = bitset<8>(byteValue).to_string();
-      reverse(byteInStr.begin(), byteInStr.end());
-
-      // Must convert to binary, reverse, and append
-      dataBinStr += byteInStr;
-    }
-    cout << "Data bitmap" << dataBinStr << endl;
-    // Now we can index into dataBinStr with the blockNum to see if it is free or not
     vector<int> newBlocks;
-    int newCount = newBlockCount - currBlockCount;
-    int collectedBlocksCount = 0;
     int enoughSpace = 0;
-
-    // Iterate through the entire dataBitmap and collect blocks that are empty
-    // if newBlocksCount == colelctedBlocksCount, set enoughSpace = 1
-    // Outside loop, check enoughSpace = 1 and throw error if otherwise
-    for (int i = 0; i < super_global->num_data; i++)
+    int collectedBlocks = 0;
+    int newBlocksNum = newBlockCount - currBlockCount;
+    cout << "newBlocksNum: " << newBlocksNum << endl;
+    int startBlock = super_global->data_region_addr;
+    int endBlock = super_global->data_region_addr + super_global->data_region_len;
+    cout << "end: " << endBlock << endl;
+    for (int i = startBlock; i < endBlock; i++)
     {
-      cout << "Iterating through " << i << endl;
-      char status = dataBinStr[i];
+      // Remember: i here is the absolute block number
+      int bitToCheck = (i - (super_global->data_region_addr));
+      cout << "Checking bit bitToCheck " << bitToCheck << endl;
+      int byteNum = bitToCheck / 8;
+      int byteToCheck = (int)dataBitmap[byteNum];
+
+      string byteInBin = bitset<8>(byteToCheck).to_string();
+      int byteOffset = bitToCheck % 8;
+
+      char status = byteInBin[byteInBin.size() - 1 - byteOffset];
       string statusStr(1, status);
       if (statusStr != "1")
       {
-        collectedBlocksCount += 1;
-        // Is free--add the block to newBlocks vector
+        collectedBlocks += 1;
+        // Is free--add the block to newBlocks vector)
         newBlocks.push_back(i); // Append that block number
         cout << "Just added " << i << endl;
-        if (collectedBlocksCount == newCount)
+        if (collectedBlocks == newBlocksNum)
         {
           enoughSpace = 1;
           break; // Break for loop
@@ -536,20 +536,80 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       delete inode;
       return -ENOTENOUGHSPACE;
     }
-
-    blocksToUse.insert(blocksToUse.end(), newBlocks.begin(), newBlocks.end());
-
-    for (int value : newBlocks)
+    else
     {
-      cout << "In newBlocks " << value << endl;
+      // By this point, we have the new blocks we can write to. Append to blocksToUse and then write the buffer as you do in the same blocks case
+      blocksToUse.insert(blocksToUse.end(), newBlocks.begin(), newBlocks.end());
+      for (int value : blocksToUse)
+      {
+        cout << "Final result: " << value << endl;
+      }
     }
 
-    // By this point, we have the new blocks we can write to. Append to blocksToUse and then write the buffer as you do in the same blocks case
-    blocksToUse.insert(blocksToUse.end(), newBlocks.begin(), newBlocks.end());
-    for (int value : blocksToUse)
-    {
-      cout << "NEW" << value << endl;
-    }
+    free(dataBitmap);
+
+    // string dataBinStr;
+    // int numDataInBytes = super_global->num_data / 8;
+    // // Getting the dataBitmap in a binary string
+    // for (int i = 0; i < numDataInBytes; i++)
+    // {
+    //   unsigned int byteValue = (unsigned int)dataBitmap[i];
+    //   string byteInStr = bitset<8>(byteValue).to_string();
+    //   reverse(byteInStr.begin(), byteInStr.end());
+
+    //   // Must convert to binary, reverse, and append
+    //   dataBinStr += byteInStr;
+    // }
+    // cout << "Data bitmap" << dataBinStr << endl;
+    // // Now we can index into dataBinStr with the blockNum to see if it is free or not
+    // vector<int> newBlocks;
+    // int newCount = newBlockCount - currBlockCount;
+    // int collectedBlocksCount = 0;
+    // int enoughSpace = 0;
+
+    // // Iterate through the entire dataBitmap and collect blocks that are empty
+    // // if newBlocksCount == colelctedBlocksCount, set enoughSpace = 1
+    // // Outside loop, check enoughSpace = 1 and throw error if otherwise
+    // for (int i = 0; i < super_global->num_data; i++)
+    // {
+    //   cout << "Iterating through " << i << endl;
+    //   char status = dataBinStr[i];
+    //   string statusStr(1, status);
+    //   if (statusStr != "1")
+    //   {
+    //     collectedBlocksCount += 1;
+    //     // Is free--add the block to newBlocks vector
+    //     newBlocks.push_back(i); // Append that block number
+    //     cout << "Just added " << i << endl;
+    //     if (collectedBlocksCount == newCount)
+    //     {
+    //       enoughSpace = 1;
+    //       break; // Break for loop
+    //     }
+    //   }
+    // }
+
+    // // Check if we have enough new blocks to allcoate
+    // if (enoughSpace != 1)
+    // {
+    //   // Not enough space; throw error
+    //   delete inode;
+    //   return -ENOTENOUGHSPACE;
+    // }
+
+    // blocksToUse.insert(blocksToUse.end(), newBlocks.begin(), newBlocks.end());
+
+    // for (int value : newBlocks)
+    // {
+    //   cout << "In newBlocks " << value << endl;
+    // }
+
+    // // By this point, we have the new blocks we can write to. Append to blocksToUse and then write the buffer as you do in the same blocks case
+    // blocksToUse.insert(blocksToUse.end(), newBlocks.begin(), newBlocks.end());
+    // for (int value : blocksToUse)
+    // {
+    //   cout << "NEW" << value << endl;
+    // }
     // int remaining = min((long unsigned int)size, sizeof(buffer));
     // int sizeToWrite = remaining;
     // int copyAmount;

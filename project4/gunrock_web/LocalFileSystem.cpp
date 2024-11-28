@@ -379,7 +379,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     newBlockCount += 1;
   }
 
-  cout << "About to check if same\n";
+  // cout << "About to check if same\n";
   // Uses the same number of blocks
   int total = 0;
   if (newBlockCount == currBlockCount)
@@ -397,7 +397,6 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     // then update inode size. Bitmap should remain the same
     int remaining = min((long unsigned int)size, sizeof(buffer)); // Makes sure that only the buffer size is written if the specified size is bigger
     int sizeToWrite = remaining;
-    // cout << "Amount to wrirte is " << remaining << endl;
     int copyAmount;
     // Buffer of null values to use for emptying out the block
     void *emptyBuffer = malloc(UFS_BLOCK_SIZE);
@@ -416,7 +415,6 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       }
 
       void *blockBuffer = malloc(UFS_BLOCK_SIZE);
-      // Copy the amound to write into the blockBuffer from the defined buffer
       void *currBlockToCopy = (char *)buffer + i * UFS_BLOCK_SIZE; // Determines which block's worth of data from buffer should be copied in
       memcpy(blockBuffer, currBlockToCopy, copyAmount);
 
@@ -436,12 +434,89 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     changeInodeSize(inodeNumber, sizeToWrite, *this);
     free(emptyBuffer);
   }
+  else if (newBlockCount > currBlockCount)
+  {
+    cout << "Bruh" << endl;
+    // Determine if we need to allocate new inodes (is this even possible? I dont think so, inode management is only for create)
+    // Need to allocate more blocks
+    // Have a seperate array that keeps of lowest available block nums to use
+    // In data block, update the bitmaps
+    // Iterate through new blocks and write block by block to the new blocks.
+
+    // Have a separate check for if we can complete the request or not (before writing, check first if we can obtain all of the data blocks to write to)
+    vector<int> blocksToUse; // vector that holds both blocks that are currently in use + extra blocks to allocate
+    for (int i = 0; i < currBlockCount; i++)
+    {
+      // cout << inode->direct[i] << endl;
+      blocksToUse.push_back(inode->direct[i]);
+    }
+
+    // Check if we are able to allocate all the extra blocks
+    // Read in data bitmap
+    unsigned char *dataBitmap = (unsigned char *)malloc(super_global->data_bitmap_len * UFS_BLOCK_SIZE);
+    readDataBitmap(super_global, dataBitmap);
+
+    string dataBinStr;
+    int numDataInBytes = super_global->num_data / 8;
+    // cout << super_global->num_data << " " << numDataInBytes << endl;
+    // Printing byte by byte
+    for (int i = 0; i < numDataInBytes; i++)
+    {
+      unsigned int byteValue = (unsigned int)dataBitmap[i];
+      string byteInStr = bitset<8>(byteValue).to_string();
+      reverse(byteInStr.begin(), byteInStr.end());
+
+      // Must convert to binary, reverse, and append
+      dataBinStr += byteInStr;
+    }
+    cout << dataBinStr << "\n";
+
+    // cout << dataBitmap.length() << endl;
+    cout << super_global->num_data << endl;
+
+    // vector<int> newBlocks;
+    // int newBlocksCount = newBlockCount - currBlockCount;
+    // int collectedBlocksCount;
+    // int enoughSpace;
+
+    // Iterate through the entire dataBitmap and collect blocks that are empty
+    // if newBlocksCount == colelctedBlocksCount, set enoughSpace = 1
+    // Outside loop, check enoughSpace = 1 and throw error if otherwise
+
+    // for (int i = 0; i < super_global->num_data; i++)
+    // {
+    // Need to unwrap dataBitmap as a reversed binary string and read this
+    // First compare num data coutn and binary string len
+
+    // // Iterpret data bitmap
+    // int byteToRead = inodeNumber / 8;
+    // int byteInDec = (int)inodeBitmap[byteToRead];
+    // string byteInBin = bitset<8>(byteInDec).to_string();
+
+    // // Reverse string to follow the project's structure
+    // reverse(byteInBin.begin(), byteInBin.end());
+    // int byteOffset = inodeNumber % 8;
+
+    // char status = byteInBin[byteOffset];
+    // string statusStr(1, status);
+    // // TODO: Need to unpack the inodebitmap
+    // if (statusStr != "1")
+    // {
+    // Add the block to newBlocsk Vector
+    // }
+  }
+  // int remaining = min((long unsigned int)size, sizeof(buffer));
+  // int sizeToWrite = remaining;
+  // int copyAmount;
+  // void *emptyBuffer = malloc(UFS_BLOCK_SIZE);
+  // memset(emptyBuffer, '\0', UFS_BLOCK_SIZE);
+
+  // Check if we are able to allocate all the necesarry blocks
+  // }
 
   delete inode;
   return total;
 } // Convert the file size to how many blocks of data it would require, then iterate through direct using that count
-
-// When to use transaction?
 
 // First determine if the number of allocated blocks change or not
 // Get how many blocks current inode takes up

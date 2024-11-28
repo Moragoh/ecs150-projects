@@ -8,7 +8,7 @@
 
 #include "LocalFileSystem.h"
 #include "ufs.h"
-
+#define IS_BIT_SET(BF, N) ((BF >> N) & 0x1)
 using namespace std;
 super_t *super_global = new super_t;
 
@@ -238,14 +238,15 @@ int LocalFileSystem::stat(int inodeNumber, inode_t *inode)
   // Interpreting bitmap: each index is a byte (2 hex decimals). Convert to binary then reverse string to read.
   // Reading bitmap: Take inode // 8 to get which byte to read. inode % 8 to get which index to read.
   int byteToRead = inodeNumber / 8;
-  int byteInDec = (int)inodeBitmap[byteToRead];
+  int byteInDec = (int)inodeBitmap[byteToRead]; //  This is a byte.
   string byteInBin = bitset<8>(byteInDec).to_string();
 
-  // Reverse string to follow the project's structure
-  reverse(byteInBin.begin(), byteInBin.end());
   int byteOffset = inodeNumber % 8;
 
-  char status = byteInBin[byteOffset];
+  // Bits go from right to left, so must index from the right
+  // char status = byteInBin[byteInBin.size() - byteOffset];
+  char status = byteInBin[byteInBin.size() - 1 - byteOffset];
+
   string statusStr(1, status);
   // TODO: Need to unpack the inodebitmap
   if (statusStr != "1")

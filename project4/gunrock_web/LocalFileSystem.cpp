@@ -472,8 +472,13 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     vector<int> blocksToUse; // vector that holds both blocks that are currently in use + extra blocks to allocate
     for (int i = 0; i < currBlockCount; i++)
     {
-      // cout << inode->direct[i] << endl;
+      cout << inode->direct[i] << endl;
       blocksToUse.push_back(inode->direct[i]);
+    }
+
+    for (int value : blocksToUse)
+    {
+      cout << "OLD" << value << endl;
     }
 
     /* FINDING NEW BLOCKS TO ALLOCATE*/
@@ -494,7 +499,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       // Must convert to binary, reverse, and append
       dataBinStr += byteInStr;
     }
-
+    cout << "Data bitmap" << dataBinStr << endl;
     // Now we can index into dataBinStr with the blockNum to see if it is free or not
     vector<int> newBlocks;
     int newCount = newBlockCount - currBlockCount;
@@ -532,22 +537,17 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     }
 
     blocksToUse.insert(blocksToUse.end(), newBlocks.begin(), newBlocks.end());
-    for (int value : blocksToUse)
-    {
-      cout << "OLD" << value << endl;
-    }
 
     for (int value : newBlocks)
     {
-      cout << "In newBlokcs" << value << endl;
+      cout << "In newBlocks " << value << endl;
     }
 
     // By this point, we have the new blocks we can write to. Append to blocksToUse and then write the buffer as you do in the same blocks case
     blocksToUse.insert(blocksToUse.end(), newBlocks.begin(), newBlocks.end());
     for (int value : blocksToUse)
     {
-      cout << "NEW" << endl;
-      cout << value << endl;
+      cout << "NEW" << value << endl;
     }
     // int remaining = min((long unsigned int)size, sizeof(buffer));
     // int sizeToWrite = remaining;

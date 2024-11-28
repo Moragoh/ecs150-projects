@@ -506,6 +506,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     // Outside loop, check enoughSpace = 1 and throw error if otherwise
     for (int i = 0; i < super_global->num_data; i++)
     {
+      cout << "Iterating through " << i << endl;
       char status = dataBinStr[i];
       string statusStr(1, status);
       if (statusStr != "1")
@@ -513,6 +514,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
         collectedBlocksCount += 1;
         // Is free--add the block to newBlocks vector
         newBlocks.push_back(i); // Append that block number
+        cout << "Just added " << i << endl;
         if (collectedBlocksCount == newCount)
         {
           enoughSpace = 1;
@@ -527,6 +529,17 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       // Not enough space; throw error
       delete inode;
       return -ENOTENOUGHSPACE;
+    }
+
+    blocksToUse.insert(blocksToUse.end(), newBlocks.begin(), newBlocks.end());
+    for (int value : blocksToUse)
+    {
+      cout << "OLD" << value << endl;
+    }
+
+    for (int value : newBlocks)
+    {
+      cout << "In newBlokcs" << value << endl;
     }
 
     // By this point, we have the new blocks we can write to. Append to blocksToUse and then write the buffer as you do in the same blocks case

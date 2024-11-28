@@ -353,10 +353,13 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
  */
 int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
 {
+  // Am I suppose to check memcpy every time and throw invalid size error if its too much? I dont think so
   inode_t *inode = new inode_t;
   int ret = stat(inodeNumber, inode);
 
-  /*ERROR CHECKING*/
+  /*
+  ERROR CHECKING
+  */
   // Check ret to return 1 with error string
   if (ret == -EINVALIDINODE || ret == -EINVALIDSIZE)
   {
@@ -366,7 +369,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     return -EINVALIDINODE;
   }
 
-  if (size < 0)
+  if (size < 0 || size > MAX_FILE_SIZE)
   {
     delete inode;
     return -EINVALIDTYPE;
@@ -386,11 +389,22 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     currBlockCount += 1;
   }
 
-  int newBlockCount = size / UFS_BLOCK_SIZE;
+  // CAUTION: IF INTENDED BEHAVIOR DIFFERENT (EX: ERROR SUPPOSE TO BE THROWN WHEN SIZE SUPER BIG, THIS MAY THROW AN ERROR)
+  // int sizeToWrite = min((long unsigned int)size, sizeof(buffer)); // Makes sure that only the buffer size is written if the specified size is bigger
+  int sizeToWrite = size; // Makes sure that only the buffer size is written if the specified size is bigger
+  int newBlockCount = sizeToWrite / UFS_BLOCK_SIZE;
   if ((size % UFS_BLOCK_SIZE) != 0)
   {
     newBlockCount += 1;
   }
+
+  /*
+  Hari's logic
+  handle data bit map
+  Read databitmap
+  iterate for numblocks to write
+  Hari did something to set sizeToWrite to something different
+  */
 
   // cout << "About to check if same\n";
   // Uses the same number of blocks
@@ -408,8 +422,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
 
     // If block number same, all we have to do is foreach block, clear out and write
     // then update inode size. Bitmap should remain the same
-    int remaining = min((long unsigned int)size, sizeof(buffer)); // Makes sure that only the buffer size is written if the specified size is bigger
-    int sizeToWrite = remaining;
+    int remaining = sizeToWrite;
     int copyAmount;
     // Buffer of null values to use for emptying out the block
     void *emptyBuffer = malloc(UFS_BLOCK_SIZE);
@@ -463,6 +476,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       blocksToUse.push_back(inode->direct[i]);
     }
 
+    /* FINDING NEW BLOCKS TO ALLOCATE*/
     // Check if we are able to allocate all the extra blocks
     // Read in data bitmap
     unsigned char *dataBitmap = (unsigned char *)malloc(super_global->data_bitmap_len * UFS_BLOCK_SIZE);
@@ -497,14 +511,13 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       if (statusStr != "1")
       {
         collectedBlocksCount += 1;
+        // Is free--add the block to newBlocks vector
+        newBlocks.push_back(i); // Append that block number
         if (collectedBlocksCount == newCount)
         {
           enoughSpace = 1;
           break; // Break for loop
         }
-
-        // Is free--add the block to newBlocks vector
-        newBlocks.push_back(i); // Append that block number
       }
     }
 
@@ -516,6 +529,13 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       return -ENOTENOUGHSPACE;
     }
 
+    // By this point, we have the new blocks we can write to. Append to blocksToUse and then write the buffer as you do in the same blocks case
+    blocksToUse.insert(blocksToUse.end(), newBlocks.begin(), newBlocks.end());
+    for (int value : blocksToUse)
+    {
+      cout << "NEW" << endl;
+      cout << value << endl;
+    }
     // int remaining = min((long unsigned int)size, sizeof(buffer));
     // int sizeToWrite = remaining;
     // int copyAmount;

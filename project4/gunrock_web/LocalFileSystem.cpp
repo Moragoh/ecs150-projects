@@ -569,17 +569,46 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       free(blockBuffer);
     }
 
+    // After writing, 3 things need to be done: inode size update, direct array update, data bitmap update
+
     /*
-    3 things need to be done after the writing
-    1) Inode size update (Done)
-    2) Data block allocation update
-    3) Direct pointer update
+    Inode size update
     */
-    // Updating inode size
     changeInodeSize(inodeNumber, total, *this);
     free(emptyBuffer);
 
-    // Update data block allocation
+    /*
+    Updating direct pointer of the inodeNumber inode
+    */
+    // Use stat to get specific inode
+    inode_t *inode = new inode_t;
+    int ret = stat(inodeNumber, inode);
+    if (ret != 0)
+    {
+      cerr << "Error while getting inode to update its direct pointers" << endl;
+    }
+
+    // Iterate through blocksToUse and update the direct[] entries. We can check this with ds3cart
+    for (int i = 0; i < (int)blocksToUse.size(); i++)
+    {
+      inode->direct[i] = blocksToUse[i];
+    }
+
+    // Persist to disk
+    inode_t *inodes = (inode_t *)malloc(super_global->num_inodes * sizeof(inode_t));
+    // Obtains current state of inodes. Now just have to replace it with inodes
+    readInodeRegion(super_global, inodes);
+
+    // Find where in inodes the inode specified by inum is
+    inodes[inodeNumber] = *inode;
+
+    writeInodeRegion(super_global, inodes);
+    free(inodes);
+    delete inode;
+
+    /*
+    Update data bitmap
+    */
     // Iterate through blocksToUse and change their status in bitmap to 1 Write updated bitmap
     for (int blockNum : blocksToUse)
     {
@@ -611,7 +640,6 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     }
     // Write new dataBitmap using writeDatabitmap
     writeDataBitmap(super_global, dataBitmap);
-
     free(dataBitmap);
   }
   delete inode;

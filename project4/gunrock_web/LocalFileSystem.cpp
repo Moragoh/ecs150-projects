@@ -495,7 +495,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       // Not enough space, so determine how many block's worth of data can be written
       blocksToUse.insert(blocksToUse.end(), newBlocks.begin(), newBlocks.end());
       totalBlockCount = blocksToUse.size();
-      remaining = totalBlockCount * UFS_BLOCK_SIZE;
+      remaining = totalBlockCount * UFS_BLOCK_SIZE; // update the size that is to be written to the max number of blocks we can write
     }
     else
     {
@@ -776,5 +776,7 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name)
 Things to test
 
 1. Delete -> Try to access inode and see if it throws error
-2. Actually check if total in write matches up with size in less than, same, more
+2. Actually check if total in write matches up with size in less than, same, more (check)
+3. Test omega big file (easier to do with cpy, probably)
+
 */

@@ -38,14 +38,15 @@ int main(int argc, char *argv[])
   // fileSystem->write(3, buffer, sizeof(buffer));
 
   const char shortBuffer[] = "Cannery Row";
+  int ret;
   if (strcmp(bufferMode, "0") == 0)
   {
-    fileSystem->write(3, shortBuffer, sizeof(shortBuffer));
+    ret = fileSystem->write(3, shortBuffer, sizeof(shortBuffer));
   }
 
   else
   {
-    fileSystem->write(3, buffer, sizeof(buffer));
+    ret = fileSystem->write(3, buffer, sizeof(buffer));
   }
 
   // super_t *super = new super_t;
@@ -58,6 +59,8 @@ int main(int argc, char *argv[])
   // Block 4 is written by default. So bitmap should indicate that 4 is full, right?
   // lets check big directory
   // delete super;
+
+  cout << ret << " " << sizeof(shortBuffer) << " " << sizeof(buffer) << endl;
   delete disk;
   delete fileSystem;
   return 0;

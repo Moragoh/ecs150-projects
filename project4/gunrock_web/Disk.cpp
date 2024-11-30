@@ -60,7 +60,7 @@ void Disk::readBlock(int blockNumber, void *buffer)
 {
   if (blockNumber < 0 || blockNumber >= this->numberOfBlocks())
   {
-    cerr << "Invalid block number " << blockNumber << endl;
+    cerr << "umber " << blockNumber << endl;
     exit(1);
   }
 

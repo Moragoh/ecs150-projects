@@ -671,16 +671,15 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       }
     }
 
-    // // For testing reduced block writes
-    // for (int blockNum : blocksToKeep)
-    // {
-    //   cout << "Blocks to keep is: " << blockNum << endl;
-    // }
+    for (int blockNum : blocksToKeep)
+    {
+      cout << "Blocks to keep is: " << blockNum << endl;
+    }
 
-    // for (int blockNum : blocksToFree)
-    // {
-    //   cout << "Blocks to bye bye is: " << blockNum << endl;
-    // }
+    for (int blockNum : blocksToFree)
+    {
+      cout << "Blocks to bye bye is: " << blockNum << endl;
+    }
 
     // Iterate through blocksToKeep and write buffer to those blocks
     // If block number same, all we have to do is foreach block, clear out and write

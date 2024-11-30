@@ -591,60 +591,23 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
 
       cout << "changed byteInBin: " << byteInBin << endl;
 
-      // // Change that byteInBin to int again, then write it back as dataBitmap[byteNum]
+      // Change that byteInBin to int again, then write it back as dataBitmap[byteNum]
       int byteInInt = stoi(byteInBin, nullptr, 2);
       unsigned char byteInChar = (unsigned char)byteInInt;
-      cout << byteInInt << endl;
-      cout << (int)byteInChar << endl;
+      // cout << byteInInt << endl;
+      // cout << (int)byteInChar << endl;
       dataBitmap[byteNum] = byteInChar;
+      // int numDataInBytes = super_global->num_data / 8;
+      // // Printing byte by byte
+      // for (int i = 0; i < numDataInBytes; i++)
+      // {
+      //   cout << (unsigned int)dataBitmap[i] << " ";
+      // }
+      // cout << "\n";
     }
-
-    int numDataInBytes = super_global->num_data / 8;
-    // Printing byte by byte
-    for (int i = 0; i < numDataInBytes; i++)
-    {
-      cout << (unsigned int)dataBitmap[i] << " ";
-    }
-    cout << "\n";
 
     free(dataBitmap);
-    /*
-     For create calls, you'll need to allocate both an inode and a disk block for directories. If you have allocated one of these entities but can't allocate the other, make sure you free allocated inodes or disk blocks before returning an error from the call.
-     */
-
-    // blocksToUse has all the blocks we need to write to, so start writing buffer
-
-    // int remaining = min((long unsigned int)size, sizeof(buffer));
-    // int sizeToWrite = remaining;
-    // int copyAmount;
-    // void *emptyBuffer = malloc(UFS_BLOCK_SIZE);
-    // memset(emptyBuffer, '\0', UFS_BLOCK_SIZE);
-
-    // Check if we are able to allocate all the necesarry blocks
-    // }
-
-    // Convert the file size to how many blocks of data it would require, then iterate through direct using that count
-
-    // First determine if the number of allocated blocks change or not
-    // Get how many blocks current inode takes up
-    // Get how many size would take up
-
-    // Come up with 3 cases: same, more, less
-    // Same
-    // Get currentBlocks (current blocks in use from fileSize / block size) and then do inode->direct
-    // Iterate through currentBlocks
-    // Keep track of remaining. If remaining >= blockSize, copyAmount = blockSize. Else remaining
-    // Make tempbuffer of blockSize
-
-    // Before write, always ret = beginTransaction
-    // if writeblock successful, commit it. Else rollback and therow error
-    // if ret, then commit transaction. Else rollback
-
-    // memcpy buffer into tempbuffer and writeBlock
-    // Update bufferPos
-
-    // To test: first check output, then ds3bits to see that they match
-  }
+    }
   delete inode;
   return total;
 }

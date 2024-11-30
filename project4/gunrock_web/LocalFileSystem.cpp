@@ -8,7 +8,6 @@
 
 #include "LocalFileSystem.h"
 #include "ufs.h"
-#define IS_BIT_SET(BF, N) ((BF >> N) & 0x1)
 using namespace std;
 super_t *super_global = new super_t;
 
@@ -557,7 +556,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
 
       // Start writing to the blocks
       int blockNum = blocksToUse[i];
-      cout << "Writing to block " << blockNum << endl;
+      // cout << "Writing to block " << blockNum << endl;
 
       // Clear out block
       disk->writeBlock(blockNum, emptyBuffer);
@@ -622,7 +621,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       // Access that byte and modify the value
       byteInBin[byteInBin.size() - 1 - byteOffset] = '1';
 
-      cout << "changed byteInBin: " << byteInBin << endl;
+      // cout << "changed byteInBin: " << byteInBin << endl;
 
       // Change that byteInBin to int again, then write it back as dataBitmap[byteNum]
       int byteInInt = stoi(byteInBin, nullptr, 2);

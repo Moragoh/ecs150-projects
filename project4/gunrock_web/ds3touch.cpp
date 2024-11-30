@@ -33,7 +33,8 @@ int main(int argc, char *argv[])
 
   inode_t *inode = new inode_t;
   fileSystem->stat(parentInode, inode);
-  delete inode;
+
+  // Temporarily use to test create
 
   return 0;
 }

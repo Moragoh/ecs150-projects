@@ -346,7 +346,6 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
 
 int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
 {
-  // Am I suppose to check memcpy every time and throw invalid size error if its too much? I dont think so
   inode_t *inode = new inode_t;
   int ret = stat(inodeNumber, inode);
 
@@ -389,15 +388,6 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     newBlockCount += 1;
   }
 
-  /*
-  Hari's logic
-  handle data bit map
-  Read databitmap
-  iterate for numblocks to write
-  Hari did something to set sizeToWrite to something different
-  */
-
-  // cout << "About to check if same\n";
   // Uses the same number of blocks
   int total = 0;
   if (newBlockCount == currBlockCount)
@@ -407,7 +397,6 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     vector<int> blocksInUse;
     for (int i = 0; i < currBlockCount; i++)
     {
-      // cout << inode->direct[i] << endl;
       blocksInUse.push_back(inode->direct[i]);
     }
 
@@ -463,20 +452,6 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       blocksToUse.push_back(inode->direct[i]);
     }
 
-    // for (int value : blocksToUse)
-    // {
-    //   cout << "before adding" << value << endl;
-    // }
-
-    /*
-    From here, we must find new blocks that can be used to fill the direct pointers with
-    Direct pointers. Direct points are in absoluate block numbers.
-    Start from block data_region_addr and iterate until data_region_addr + data_region_len.
-    For each i, look it up in the block bitmap to see if it is free.
-    Get bitToCheck = (i - data_region_len) // 8
-    Lookup bitmapInBytes[bitToCheck] to get the specific byte
-    Within byte, look up i % 8 from the right
-    */
     unsigned char *dataBitmap = (unsigned char *)malloc(super_global->data_bitmap_len * UFS_BLOCK_SIZE);
     readDataBitmap(super_global, dataBitmap);
 
@@ -606,7 +581,6 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     /*
     Update data bitmap
     */
-
     for (int blockNum : blocksToUse)
     {
       // Remember: i here is the absolute block number

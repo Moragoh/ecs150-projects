@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
   // fileSystem->write(3, buffer, sizeof(buffer));
 
   // cout << "size of shortBuffer" << sizeof(shortBuffer);
-  const char shortBuffer[] = "Cannery Row in Monterey in California";
+  const char shortBuffer[] = "Cannery Row";
   fileSystem->write(3, shortBuffer, sizeof(shortBuffer));
 
   // super_t *super = new super_t;

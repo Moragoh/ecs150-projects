@@ -38,6 +38,7 @@ LocalFileSystem::LocalFileSystem(Disk *disk)
   // Fill super in for other functions to use
   readSuperBlock(super_global);
 }
+
 // Read super block and allocate the structure accordingly
 void LocalFileSystem::readSuperBlock(super_t *super)
 {
@@ -640,6 +641,59 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     // Write new dataBitmap using writeDatabitmap
     writeDataBitmap(super_global, dataBitmap);
     free(dataBitmap);
+  }
+  else if (newBlockCount <= currBlockCount)
+  {
+    // Iterate through the current blocks that are in use
+    // Separate into two bins: blocks that are still needed, and blocks that are no longer needed
+    vector<int> blocksInUse;
+    for (int i = 0; i < currBlockCount; i++)
+    {
+      // cout << inode->direct[i] << endl;
+      blocksInUse.push_back(inode->direct[i]);
+    }
+
+    vector<int> blocksToKeep;
+    vector<int> blocksToFree;
+    int bCount = 0;
+
+    cout << currBlockCount << endl;
+    cout << newBlockCount << endl;
+    for (int i = 0; i < currBlockCount; i++)
+    {
+      if (bCount < newBlockCount)
+      {
+        blocksToKeep.push_back(inode->direct[i]);
+        bCount += 1;
+      }
+      else
+      {
+        blocksToFree.push_back(inode->direct[i]);
+        bCount += 1;
+      }
+    }
+
+    for (int blockNum : blocksToKeep)
+    {
+      cout << "Blocks to keep is: " << blockNum << endl;
+    }
+
+    for (int blockNum : blocksToFree)
+    {
+      cout << "Blocks to bye bye is: " << blockNum << endl;
+    }
+
+    // Iterate through blocksToKeep and write buffer to those blocks
+
+    // Iterate through blocksToBeFree and
+
+    // Update inode size
+    // Update inode direct with blocksToKeep as 1 and blocksToBeFree as 0 (this part may not be needed since we change the size)
+    // Update the dataBitmap to set the freed blocks to 0
+  }
+  else
+  {
+    cerr << "Uncaught case when comparing newBlockCount and currBlockCount" << endl;
   }
   delete inode;
   return total;

@@ -340,17 +340,6 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
   return 0;
 }
 
-/**
- * Write the contents of a file.
- *
- * Writes a buffer of size to the file, replacing any content that
- * already exists.
- *
- * Success: number of bytes written
- * Failure: -EINVALIDINODE, -EINVALIDSIZE, -EINVALIDTYPE.
- * Failure modes: invalid inodeNumber, invalid size, not a regular file
- * (because you can't write to directories).
- */
 int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
 {
   // Am I suppose to check memcpy every time and throw invalid size error if its too much? I dont think so
@@ -455,35 +444,32 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       free(blockBuffer);
     }
     // Updating inode size
-    changeInodeSize(inodeNumber, sizeToWrite, *this);
+    changeInodeSize(inodeNumber, total, *this);
     free(emptyBuffer);
   }
   else if (newBlockCount > currBlockCount)
   {
-    // Determine if we need to allocate new inodes (is this even possible? I dont think so, inode management is only for create)
-    // Need to allocate more blocks
-    // Have a seperate array that keeps of lowest available block nums to use
-    // In data block, update the bitmaps
-    // Iterate through new blocks and write block by block to the new blocks.
 
-    // Have a separate check for if we can complete the request or not (before writing, check first if we can obtain all of the data blocks to write to)
+    /*
+    CASE WHERE WE NEED TO ALLOCATE MORE BLOCKS
+    */
     vector<int> blocksToUse; // vector that holds both blocks that are currently in use + extra blocks to allocate
     for (int i = 0; i < currBlockCount; i++)
     {
-      cout << inode->direct[i] << endl;
       blocksToUse.push_back(inode->direct[i]);
     }
 
-    for (int value : blocksToUse)
-    {
-      cout << "before adding" << value << endl;
-    }
+    // for (int value : blocksToUse)
+    // {
+    //   cout << "before adding" << value << endl;
+    // }
 
     /* FINDING NEW BLOCKS TO ALLOCATE*/
     // Check if we are able to allocate all the extra blocks
     // Read in data bitmap
     unsigned char *dataBitmap = (unsigned char *)malloc(super_global->data_bitmap_len * UFS_BLOCK_SIZE);
     readDataBitmap(super_global, dataBitmap);
+
     /*
     From here, we must find new blocks that can be used to fill the direct pointers with
     Direct pointers. Direct points are in absoluate block numbers.
@@ -493,20 +479,17 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     Lookup bitmapInBytes[bitToCheck] to get the specific byte
     Within byte, look up i % 8 from the right
     */
-
     vector<int> newBlocks;
     int enoughSpace = 0;
     int collectedBlocks = 0;
     int newBlocksNum = newBlockCount - currBlockCount;
-    cout << "newBlocksNum: " << newBlocksNum << endl;
     int startBlock = super_global->data_region_addr;
     int endBlock = super_global->data_region_addr + super_global->data_region_len;
-    cout << "end: " << endBlock << endl;
+    int remaining;
     for (int i = startBlock; i < endBlock; i++)
     {
       // Remember: i here is the absolute block number
       int bitToCheck = (i - (super_global->data_region_addr));
-      cout << "Checking bit bitToCheck " << bitToCheck << endl;
       int byteNum = bitToCheck / 8;
       int byteToCheck = (int)dataBitmap[byteNum];
 
@@ -520,96 +503,117 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
         collectedBlocks += 1;
         // Is free--add the block to newBlocks vector)
         newBlocks.push_back(i); // Append that block number
-        cout << "Just added " << i << endl;
+        // cout << "Just added " << i << endl;
         if (collectedBlocks == newBlocksNum)
         {
           enoughSpace = 1;
-          break; // Break for loop
+          break;
         }
       }
     }
 
+    int totalBlockCount = 0;
     // Check if we have enough new blocks to allcoate
     if (enoughSpace != 1)
     {
-      // Not enough space; throw error
-      delete inode;
-      return -ENOTENOUGHSPACE;
+      // Not enough space, so determine how many block's worth of data can be written
+      blocksToUse.insert(blocksToUse.end(), newBlocks.begin(), newBlocks.end());
+      totalBlockCount = blocksToUse.size();
+      remaining = totalBlockCount * UFS_BLOCK_SIZE;
     }
     else
     {
       // By this point, we have the new blocks we can write to. Append to blocksToUse and then write the buffer as you do in the same blocks case
       blocksToUse.insert(blocksToUse.end(), newBlocks.begin(), newBlocks.end());
-      for (int value : blocksToUse)
-      {
-        cout << "Final result: " << value << endl;
-      }
+      totalBlockCount = blocksToUse.size();
+      // We have enough blocks, so copyAmount is size
+      remaining = size;
     }
 
+    int copyAmount;
+    // Buffer of null values to use for emptying out the block
+    void *emptyBuffer = malloc(UFS_BLOCK_SIZE);
+    memset(emptyBuffer, '\0', UFS_BLOCK_SIZE);
+    // Clear and write each block at a time
+    for (int i = 0; i < totalBlockCount; i++)
+    {
+      // Determine how much to write: a full block's worth or less
+      if (remaining > UFS_BLOCK_SIZE)
+      {
+        copyAmount = UFS_BLOCK_SIZE;
+      }
+      else
+      {
+        copyAmount = remaining;
+      }
+
+      void *blockBuffer = malloc(UFS_BLOCK_SIZE);
+      void *currBlockToCopy = (char *)buffer + i * UFS_BLOCK_SIZE; // Determines which block's worth of data from buffer should be copied in
+      memcpy(blockBuffer, currBlockToCopy, copyAmount);
+
+      // Start writing to the blocks
+      int blockNum = blocksToUse[i];
+      cout << "Writing to block" << blockNum << endl;
+
+      // Clear out block
+      disk->writeBlock(blockNum, emptyBuffer);
+
+      // Write block with new data
+      disk->writeBlock(blockNum, blockBuffer);
+      remaining -= copyAmount;
+      total += copyAmount;
+      free(blockBuffer);
+    }
+
+    /*
+    3 things need to be done after the writing
+    1) Inode size update
+    2) Data block allocation update
+    3) Direct pointer update
+    */
+    // Updating inode size
+    changeInodeSize(inodeNumber, total, *this);
+    free(emptyBuffer);
+
+    // Update data block allocation
+    // Iterate through blocksToUse and change their status in bitmap to 1 Write updated bitmap
+    for (int blockNum : blocksToUse)
+    {
+      // Remember: i here is the absolute block number
+      int bitToCheck = (blockNum - (super_global->data_region_addr));
+      int byteNum = bitToCheck / 8;
+      int byteToCheck = (int)dataBitmap[byteNum];
+      int byteOffset = bitToCheck % 8;
+      string byteInBin = bitset<8>(byteToCheck).to_string();
+
+      // Access that byte and modify the value
+      byteInBin[byteInBin.size() - 1 - byteOffset] = '1';
+
+      cout << "changed byteInBin: " << byteInBin << endl;
+
+      // // Change that byteInBin to int again, then write it back as dataBitmap[byteNum]
+      int byteInInt = stoi(byteInBin, nullptr, 2);
+      unsigned char byteInChar = (unsigned char)byteInInt;
+      cout << byteInInt << endl;
+      cout << (int)byteInChar << endl;
+      dataBitmap[byteNum] = byteInChar;
+    }
+
+    int numDataInBytes = super_global->num_data / 8;
+    // Printing byte by byte
+    for (int i = 0; i < numDataInBytes; i++)
+    {
+      cout << (unsigned int)dataBitmap[i] << " ";
+    }
+    cout << "\n";
+
     free(dataBitmap);
+    /*
+     For create calls, you'll need to allocate both an inode and a disk block for directories. If you have allocated one of these entities but can't allocate the other, make sure you free allocated inodes or disk blocks before returning an error from the call.
+     */
 
-    // string dataBinStr;
-    // int numDataInBytes = super_global->num_data / 8;
-    // // Getting the dataBitmap in a binary string
-    // for (int i = 0; i < numDataInBytes; i++)
-    // {
-    //   unsigned int byteValue = (unsigned int)dataBitmap[i];
-    //   string byteInStr = bitset<8>(byteValue).to_string();
-    //   reverse(byteInStr.begin(), byteInStr.end());
+    // blocksToUse has all the blocks we need to write to, so start writing buffer
 
-    //   // Must convert to binary, reverse, and append
-    //   dataBinStr += byteInStr;
-    // }
-    // cout << "Data bitmap" << dataBinStr << endl;
-    // // Now we can index into dataBinStr with the blockNum to see if it is free or not
-    // vector<int> newBlocks;
-    // int newCount = newBlockCount - currBlockCount;
-    // int collectedBlocksCount = 0;
-    // int enoughSpace = 0;
-
-    // // Iterate through the entire dataBitmap and collect blocks that are empty
-    // // if newBlocksCount == colelctedBlocksCount, set enoughSpace = 1
-    // // Outside loop, check enoughSpace = 1 and throw error if otherwise
-    // for (int i = 0; i < super_global->num_data; i++)
-    // {
-    //   cout << "Iterating through " << i << endl;
-    //   char status = dataBinStr[i];
-    //   string statusStr(1, status);
-    //   if (statusStr != "1")
-    //   {
-    //     collectedBlocksCount += 1;
-    //     // Is free--add the block to newBlocks vector
-    //     newBlocks.push_back(i); // Append that block number
-    //     cout << "Just added " << i << endl;
-    //     if (collectedBlocksCount == newCount)
-    //     {
-    //       enoughSpace = 1;
-    //       break; // Break for loop
-    //     }
-    //   }
-    // }
-
-    // // Check if we have enough new blocks to allcoate
-    // if (enoughSpace != 1)
-    // {
-    //   // Not enough space; throw error
-    //   delete inode;
-    //   return -ENOTENOUGHSPACE;
-    // }
-
-    // blocksToUse.insert(blocksToUse.end(), newBlocks.begin(), newBlocks.end());
-
-    // for (int value : newBlocks)
-    // {
-    //   cout << "In newBlocks " << value << endl;
-    // }
-
-    // // By this point, we have the new blocks we can write to. Append to blocksToUse and then write the buffer as you do in the same blocks case
-    // blocksToUse.insert(blocksToUse.end(), newBlocks.begin(), newBlocks.end());
-    // for (int value : blocksToUse)
-    // {
-    //   cout << "NEW" << value << endl;
-    // }
     // int remaining = min((long unsigned int)size, sizeof(buffer));
     // int sizeToWrite = remaining;
     // int copyAmount;
@@ -654,4 +658,5 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name)
 Things to test
 
 1. Delete -> Try to access inode and see if it throws error
+2. Actually check if total in write matches up with size in less than, same, more
 */

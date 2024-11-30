@@ -12,6 +12,9 @@
         "type_traits": "cpp",
         "utility": "cpp",
         "vector": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "bitset": "cpp",
+        "string_view": "cpp",
+        "initializer_list": "cpp"
     }
 }

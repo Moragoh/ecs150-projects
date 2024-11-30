@@ -8,8 +8,10 @@
 
 using namespace std;
 
-int main(int argc, char *argv[]) {
-  if (argc != 4) {
+int main(int argc, char *argv[])
+{
+  if (argc != 4)
+  {
     cerr << argv[0] << ": diskImageFile parentInode fileName" << endl;
     cerr << "For example:" << endl;
     cerr << "    $ " << argv[0] << " a.img 0 a.txt" << endl;
@@ -23,6 +25,15 @@ int main(int argc, char *argv[]) {
   int parentInode = stoi(argv[2]);
   string fileName = string(argv[3]);
   */
-  
+
+  Disk *disk = new Disk("./tests/disk_iamges/a2.img", UFS_BLOCK_SIZE);
+  LocalFileSystem *fileSystem = new LocalFileSystem(disk);
+  int parentInode = 3;
+  string fileName = "testing";
+
+  inode_t *inode = new inode_t;
+  fileSystem->stat(parentInode, inode);
+  delete inode;
+
   return 0;
 }

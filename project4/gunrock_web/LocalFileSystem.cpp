@@ -93,13 +93,17 @@ void LocalFileSystem::readDataBitmap(super_t *super, unsigned char *dataBitmap)
 
 void LocalFileSystem::writeDataBitmap(super_t *super, unsigned char *dataBitmap)
 {
-  // How to prepare dataBitmap
-  // Use readMap to get map
-  // Use indexing logic (used in stat) to write specific one
+  int mapStart = super->data_bitmap_addr;
+  int mapLength = super->data_bitmap_len; // The bitmap is mapLegth blocks long
 
-  // dataBitmap is the thing we want to write
-  // Get data map start addr
-  // Write block
+  void *buffer = malloc(UFS_BLOCK_SIZE);
+  for (int i = 0; i < mapLength; i++)
+  {
+    // Gets a block of dataBitmap into buffer
+    memcpy(buffer, dataBitmap + i * UFS_BLOCK_SIZE, UFS_BLOCK_SIZE);
+    disk->writeBlock(mapStart + i, buffer);
+  }
+  free(buffer);
 }
 
 void LocalFileSystem::readInodeRegion(super_t *super, inode_t *inodes)
@@ -553,7 +557,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
 
       // Start writing to the blocks
       int blockNum = blocksToUse[i];
-      cout << "Writing to block" << blockNum << endl;
+      cout << "Writing to block " << blockNum << endl;
 
       // Clear out block
       disk->writeBlock(blockNum, emptyBuffer);
@@ -567,7 +571,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
 
     /*
     3 things need to be done after the writing
-    1) Inode size update
+    1) Inode size update (Done)
     2) Data block allocation update
     3) Direct pointer update
     */
@@ -598,16 +602,18 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       // cout << (int)byteInChar << endl;
       dataBitmap[byteNum] = byteInChar;
       // int numDataInBytes = super_global->num_data / 8;
-      // // Printing byte by byte
+      // Printing byte by byte
       // for (int i = 0; i < numDataInBytes; i++)
       // {
       //   cout << (unsigned int)dataBitmap[i] << " ";
       // }
       // cout << "\n";
     }
+    // Write new dataBitmap using writeDatabitmap
+    writeDataBitmap(super_global, dataBitmap);
 
     free(dataBitmap);
-    }
+  }
   delete inode;
   return total;
 }

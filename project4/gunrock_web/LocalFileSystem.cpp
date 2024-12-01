@@ -525,8 +525,6 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         strncpy(newDirEnt->name, name.c_str(), DIR_ENT_NAME_SIZE);
         newDirEnt->inum = inodeNumToCreate;
 
-        // cout << newDirEnt->name << endl;
-
         /*
         Writing to direct pointers of the parentInode
         */
@@ -603,41 +601,10 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
           changeInodeSize(parentInodeNumber, total, *this);
           free(emptyBuffer);
         }
-
-        // if (newFileSize <= UFS_BLOCK_SIZE)
-        // {
-        //   // Test this first
-        //   void *buffer = malloc(newFileSize);
-        //   read(parentInodeNumber, buffer, fileSize); // Read what exists at inode currently
-        //   // Copy in data of newDirEnt at the end of buffer
-        //   memcpy((char *)buffer + fileSize, newDirEnt, sizeof(*newDirEnt));
-
-        //   // Append it to blockBuffer
-        //   // writeBlock
-
-        //   free(buffer);
-        // }
-
-        // void *buffer = malloc(fileSize + sizeof(*newDirEnt));
-        // read(parentInodeNumber, buffer, fileSize);
-
-        // // Copy in data of newDirEnt at the end of buffer
-        // memcpy((char *)buffer + fileSize, newDirEnt, sizeof(*newDirEnt));
-
-        // // Write the change
-        // int newFileSize = fileSize + sizeof(*newDirEnt);
-        // // write(parentInodeNumber, buffer, newFileSize); // The issue: I currently have it set up so that if its a directory, it throws an error
-
-        /*
-        Write separate lines here that goes ot the parentInode and reads its direct pointers
-        Then memcpy new dir ent into the tempBuffer that you read
-        Then copy that into a blocks worth of data, and then writeBlock and update size
-        If new fileSize bigger than a block, throw an error for now.
-        */
+        free(newDirBuffer);
 
         // Check if the size has changed
         stat(parentInodeNumber, parentInode);
-        cout << fileSize + sizeof(*newDirEnt) << endl;
         cout << "After write size" << parentInode->size << endl;
         // Write code here that prints out new directories
         // Directory, so print out entries
@@ -645,7 +612,9 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         // Collect directories
         // Use inode.size to get the size for the read
         fileSize = parentInode->size;
+        cout << "new fileSize is: " << fileSize << endl;
 
+        // For debugging only
         tempBuffer = malloc(fileSize);
         read(parentInodeNumber, tempBuffer, fileSize); // read contents of currInodeNum *(inode num of target)
 
@@ -674,22 +643,6 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         delete parentInode;
         delete newInode;
       }
-      // If file
-      // Set size to 0, type to 1
-      // Change inodes to reflect this and writeInodeRegion
-      // In parent inode's direct
-      // update the parent's direct to include the new dir_ent for the newInode
-      // Update inodeRegion
-
-      // In either case, UpdateInodeBitmap
-
-      // Is it one dir_ent_t per direct block?
-      // No need to worry. Get all the dir_ent_ts in a dynamic buffer, add the new dir_ent_ts, and write()
-
-      // Create the appropriate directory entry for the parent inode
-
-      // Update the inodeBitmap and persist
-      // Update the direct pointers of the parentInode to include the new name
     }
     else
     {
@@ -700,14 +653,19 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
   {
     // Inode exists
     // Check if the type is correct
-    if (type == target->type)
+    if ((int)type == target->type)
     {
       delete inode;
       delete target;
+      cout << "That alr exist" << endl;
       return lookupRet;
     }
     else
     {
+      cout << "original type: " << type << endl;
+      cout << "target type: " << target->type << endl;
+
+      cout << "Wrong type" << endl;
       // Exists but is the wrong type
       delete inode;
       delete target;
@@ -718,19 +676,13 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
   delete target;
   delete inode;
 
-  // Make sure inode is directory and that it exists with stat
-  // When it already exists
-  // if exists in direct as dir_ent as is of same type, return that inode num
-  // if type different, throw error
+  /*
+  Issues:
+  1)target not being updated right
+  2) new directory still has c.txt in it
+  3) What if we need more blocks?
 
-  // create
-  // Start from superblock
-  // Load in the inodeBitmap
-  // write in inodeBitmap (take the first free lowest one) using writeInodeBitmap
-  // create a new inode (handle separately based on file vs directory)
-  // Write inode region (using writeInodeRegion)
-
-  // Need to use write? Why?
+  */
   return 0;
 }
 
@@ -827,7 +779,6 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       free(blockBuffer);
     }
     // Updating inode size
-    cout << "Updating inode size to " << total << endl;
     changeInodeSize(inodeNumber, total, *this);
     free(emptyBuffer);
   }

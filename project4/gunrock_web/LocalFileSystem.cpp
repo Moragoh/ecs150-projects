@@ -73,8 +73,17 @@ void LocalFileSystem::readInodeBitmap(super_t *super, unsigned char *inodeBitmap
 
 void LocalFileSystem::writeInodeBitmap(super_t *super, unsigned char *inodeBitmap)
 {
-  // inodeBitMap is the new bitmap you want to write
-  // memcpy inodeBitmap into the start of the bitmap (super->inodebitmap_start_addr)
+  int mapStart = super->inode_bitmap_addr;
+  int mapLength = super->inode_bitmap_len; // The bitmap is mapLegth blocks long
+
+  void *buffer = malloc(UFS_BLOCK_SIZE);
+  for (int i = 0; i < mapLength; i++)
+  {
+    // Gets a block of dataBitmap into buffer
+    memcpy(buffer, inodeBitmap + i * UFS_BLOCK_SIZE, UFS_BLOCK_SIZE);
+    disk->writeBlock(mapStart + i, buffer);
+  }
+  free(buffer);
 }
 
 void LocalFileSystem::readDataBitmap(super_t *super, unsigned char *dataBitmap)
@@ -423,42 +432,28 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         */
         inodeBitmap = (unsigned char *)malloc(super_global->inode_bitmap_len * UFS_BLOCK_SIZE);
         readInodeBitmap(super_global, inodeBitmap);
+
         // Update the inodeBitmap to set inodeNumToCreate to 1
-        // readInodeBitm
-        // for (int blockNum : blocksToUse)
-        // {
-        //   // Remember: i here is the absolute block number
-        //   int bitToCheck = (blockNum - (super_global->data_region_addr));
-        //   int byteNum = bitToCheck / 8;
-        //   int byteToCheck = (int)dataBitmap[byteNum];
-        //   int byteOffset = bitToCheck % 8;
-        //   string byteInBin = bitset<8>(byteToCheck).to_string();
+        int byteNum = inodeNumToCreate / 8;
+        int byteToCheck = (int)inodeBitmap[byteNum];
 
-        //   // Access that byte and modify the value
-        //   byteInBin[byteInBin.size() - 1 - byteOffset] = '1';
+        int byteOffset = inodeNumToCreate % 8;
+        string byteInBin = bitset<8>(byteToCheck).to_string();
+        byteInBin[byteInBin.size() - 1 - byteOffset] = 1;
+        // Change that byteInBin to int again, then write it back
+        int byteInInt = stoi(byteInBin, nullptr, 2);
+        unsigned char byteInChar = (unsigned char)byteInInt;
+        // cout << byteInInt << endl;
+        // cout << (int)byteInChar << endl;
+        inodeBitmap[byteNum] = byteInChar;
 
-        //   // cout << "changed byteInBin: " << byteInBin << endl;
-
-        //   // Change that byteInBin to int again, then write it back as dataBitmap[byteNum]
-        //   int byteInInt = stoi(byteInBin, nullptr, 2);
-        //   unsigned char byteInChar = (unsigned char)byteInInt;
-        //   // cout << byteInInt << endl;
-        //   // cout << (int)byteInChar << endl;
-        //   dataBitmap[byteNum] = byteInChar;
-        //   // int numDataInBytes = super_global->num_data / 8;
-        //   // Printing byte by byte
-        //   // for (int i = 0; i < numDataInBytes; i++)
-        //   // {
-        //   //   cout << (unsigned int)dataBitmap[i] << " ";
-        //   // }
-        //   // cout << "\n";
-        // }
-        // // Write new dataBitmap using writeDatabitmap
-        // writeDataBitmap(super_global, dataBitmap);
+        // We have new inodeBitmap, so now write it
+        writeInodeBitmap(super_global, inodeBitmap);
 
         /*
         Filling up contents of the new directory
         */
+
         // This uses write(), which uses stat. So we have to first update the inodeBitMap and the inodeRegion before we can edit its direct array
         // (Editing direct array of the new directory)
         // Prepare dir_ent_t entries of . and .. (write one at a time)
@@ -482,9 +477,33 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         write(inodeNumToCreate, dirEntBuffer, sizeOfEnts); // Wrote . and .. to the direct array of the newInode. This should also update the size automaticallyt
         free(dirEntBuffer);
 
-        // (editing parent inode)
+        /*
+        Updating parentInode, which is a directory, with information about the new inode
+        */
+        inode_t *parentInode = new inode_t;
+        stat(parentInodeNumber, parentInode);
+
+        // Create new directory entry for the newly created inode
+        dir_ent_t *newDirEnt = new dir_ent_t;
+        strncpy(newDirEnt->name, name.c_str(), DIR_ENT_NAME_SIZE);
+        newDirEnt->inum = inodeNumToCreate;
+
+        // Read the parent inode content
+        // Copy in the new dir_ent information for the newly created inode at the end of the content, write(), and writeInodeRegion()
+        int fileSize = parentInode->size;
+        void *buffer = malloc(fileSize + sizeof(*newDirEnt));
+        read(parentInodeNumber, buffer, fileSize);
+
+        // Copy in data of newDirEnt at the end of buffer
+        memcpy((char *)buffer + fileSize, newDirEnt, sizeof(*newDirEnt));
+        // Write the change
+        write(parentInodeNumber, buffer, fileSize + sizeof(*newDirEnt));
+
+        free(buffer);
+        delete newDirEnt;
+        delete parentInode;
         // update the parent's direct to include the new dir_ent for the newInode
-        // Update inodeRegion
+        // Update inodeRegion with the changed parent inode
       }
       // If file
       // Set size to 0, type to 1
@@ -756,7 +775,6 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     /*
     Updating direct pointer of the inodeNumber inode
     */
-    // Use stat to get specific inode
     inode_t *inode = new inode_t;
     int ret = stat(inodeNumber, inode);
     if (ret != 0)

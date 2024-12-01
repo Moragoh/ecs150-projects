@@ -380,6 +380,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
   if (lookupRet == -ENOTFOUND)
   {
     // Check if there is enough space by checking the inodeBitmap
+    // DEBUG: Entered here correctly under not finding test. Where does it segfault?
     unsigned char *inodeBitmap = (unsigned char *)malloc(super_global->inode_bitmap_len * UFS_BLOCK_SIZE);
     readInodeBitmap(super_global, inodeBitmap);
 
@@ -397,12 +398,13 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
 
       char targetBit = byteInBin[byteInBin.size() - 1 - byteOffset];
       if (targetBit == '0')
-      {
+      { // Corerctly gets that i=4 is the first free inode
         enoughSpaceToCreate = 1;
         inodeNumToCreate = i;
         break;
       }
     }
+    free(inodeBitmap);
 
     if (enoughSpaceToCreate)
     {
@@ -439,7 +441,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
 
         int byteOffset = inodeNumToCreate % 8;
         string byteInBin = bitset<8>(byteToCheck).to_string();
-        byteInBin[byteInBin.size() - 1 - byteOffset] = 1;
+        byteInBin[byteInBin.size() - 1 - byteOffset] = '1';
         // Change that byteInBin to int again, then write it back
         int byteInInt = stoi(byteInBin, nullptr, 2);
         unsigned char byteInChar = (unsigned char)byteInInt;
@@ -500,10 +502,12 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         write(parentInodeNumber, buffer, fileSize + sizeof(*newDirEnt));
 
         free(buffer);
+        free(inodeBitmap);
         delete newDirEnt;
         delete parentInode;
         // update the parent's direct to include the new dir_ent for the newInode
         // Update inodeRegion with the changed parent inode
+        delete newInode;
       }
       // If file
       // Set size to 0, type to 1
@@ -521,8 +525,6 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
 
       // Update the inodeBitmap and persist
       // Update the direct pointers of the parentInode to include the new name
-
-      free(inodeBitmap);
     }
     else
     {

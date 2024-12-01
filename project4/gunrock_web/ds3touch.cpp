@@ -10,13 +10,13 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
-  if (argc != 4)
-  {
-    cerr << argv[0] << ": diskImageFile parentInode fileName" << endl;
-    cerr << "For example:" << endl;
-    cerr << "    $ " << argv[0] << " a.img 0 a.txt" << endl;
-    return 1;
-  }
+  // if (argc != 4)
+  // {
+  //   cerr << argv[0] << ": diskImageFile parentInode fileName" << endl;
+  //   cerr << "For example:" << endl;
+  //   cerr << "    $ " << argv[0] << " a.img 0 a.txt" << endl;
+  //   return 1;
+  // }
 
   // Parse command line arguments
   /*
@@ -26,15 +26,23 @@ int main(int argc, char *argv[])
   string fileName = string(argv[3]);
   */
 
-  Disk *disk = new Disk("./tests/disk_iamges/a2.img", UFS_BLOCK_SIZE);
+  Disk *disk = new Disk("./tests/disk_images/a3.img", UFS_BLOCK_SIZE);
   LocalFileSystem *fileSystem = new LocalFileSystem(disk);
-  int parentInode = 3;
-  string fileName = "testing";
+  string fileName = "create-test";
 
-  inode_t *inode = new inode_t;
-  fileSystem->stat(parentInode, inode);
+  // inode_t *inode = new inode_t;
+  // fileSystem->stat(parentInode, inode);
 
   // Temporarily use to test create
+  // Problem: It's saying that inode 2 is an invalid inode. Find out why
+  fileSystem->create(2, 0, fileName);
 
+  delete disk;
+  delete fileSystem;
   return 0;
 }
+
+/*
+DEBVUGGER: MUST RUN CODE AS YOU USUALLY WOULD LIKE THIS
+ROSETTA_DEBUGSERVER_PORT=1234 ./ds3touch
+*/

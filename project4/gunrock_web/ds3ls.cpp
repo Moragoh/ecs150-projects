@@ -74,20 +74,20 @@ int main(int argc, char *argv[])
   // Check if file or directory
   if (target->type == 0)
   {
-
     // Directory, so print out entries
     vector<dir_ent_t> dirEnts;
 
     // Collect directories
     // Use inode.size to get the size for the read
     int fileSize = target->size;
+    cout << "fileSize of target " << fileSize << endl;
+
     void *buffer[fileSize];
-    fileSystem->read(currInodeNum, buffer, fileSize); // read contents of currInodeNum *(inode num of target)
+    fileSystem->read(currInodeNum, buffer, fileSize);
 
     // Buffer contains directory contents
     dir_ent_t *dirBuffer = (dir_ent_t *)buffer;
     int entryCount = fileSize / sizeof(dir_ent_t);
-
     // Collect directory elements
     for (int i = 0; i < entryCount; i++)
     {
@@ -101,6 +101,7 @@ int main(int argc, char *argv[])
     // Print relevant info
     for (auto ent : dirEnts)
     {
+      cout << "PRINTIONG CONTENTS" << endl;
       int inodeNum = ent.inum;
       char *fileName = (char *)ent.name;
       cout << inodeNum << "\t" << fileName << "\n";

@@ -415,7 +415,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
       {
         // If directory
         newInode->type = 0;
-
+        newInode->size = 0;
         /*
         Writing new inode to disk
         */
@@ -424,7 +424,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         readInodeRegion(super_global, inodes);
 
         // Find where in inodes the inode specified by inum is
-        inodes[inodeNumToCreate] = *inode;
+        inodes[inodeNumToCreate] = *newInode; // inode here is the aprent
 
         writeInodeRegion(super_global, inodes);
         free(inodes);
@@ -476,7 +476,8 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         memcpy((char *)dirEntBuffer, dot, sizeof(*dot));
         pos += sizeof(*dot);
         memcpy((char *)dirEntBuffer + pos, dotDot, sizeof(*dotDot));
-        write(inodeNumToCreate, dirEntBuffer, sizeOfEnts); // Wrote . and .. to the direct array of the newInode. This should also update the size automaticallyt
+        int testRet = write(inodeNumToCreate, dirEntBuffer, sizeOfEnts); // Wrote . and .. to the direct array of the newInode. This should also update the size automatically (but this also shouldnt work because type is a directory now)
+        cout << testRet;
         free(dirEntBuffer);
         delete dot;
         delete dotDot;
@@ -487,38 +488,38 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         inode_t *parentInode = new inode_t;
         stat(parentInodeNumber, parentInode);
 
-        cout << "Before write size" << parentInode->size << endl;
-        // Write code here that prints out new directories
-        // Directory, so print out entries
-        vector<dir_ent_t> dirEnts;
+        // cout << "Before write size" << parentInode->size << endl;
+        // // Write code here that prints out new directories
+        // // Directory, so print out entries
+        // vector<dir_ent_t> dirEnts;
 
-        // Collect directories
-        // Use inode.size to get the size for the read
-        int tempSize = parentInode->size;
+        // // Collect directories
+        // // Use inode.size to get the size for the read
+        // int tempSize = parentInode->size;
 
-        void *tempBuffer = malloc(tempSize);
-        cout << "about to read" << endl;
-        read(parentInodeNumber, tempBuffer, tempSize); // read contents of currInodeNum *(inode num of target)
+        // void *tempBuffer = malloc(tempSize);
+        // cout << "about to read" << endl;
+        // read(parentInodeNumber, tempBuffer, tempSize); // read contents of currInodeNum *(inode num of target)
 
-        // Buffer contains directory contents
-        dir_ent_t *dirBuffer = (dir_ent_t *)tempBuffer;
-        int entryCount = tempSize / sizeof(dir_ent_t);
+        // // Buffer contains directory contents
+        // dir_ent_t *dirBuffer = (dir_ent_t *)tempBuffer;
+        // int entryCount = tempSize / sizeof(dir_ent_t);
 
-        // Collect directory elements
-        for (int i = 0; i < entryCount; i++)
-        {
-          // Append each entry to vector
-          dirEnts.push_back(dirBuffer[i]);
-        }
-        // Print relevant info
-        for (auto ent : dirEnts)
-        {
-          int inodeNum = ent.inum;
-          char *fileName = (char *)ent.name;
-          cout << inodeNum << "\t" << fileName << "\n";
-        }
+        // // Collect directory elements
+        // for (int i = 0; i < entryCount; i++)
+        // {
+        //   // Append each entry to vector
+        //   dirEnts.push_back(dirBuffer[i]);
+        // }
+        // // Print relevant info
+        // for (auto ent : dirEnts)
+        // {
+        //   int inodeNum = ent.inum;
+        //   char *fileName = (char *)ent.name;
+        //   cout << inodeNum << "\t" << fileName << "\n";
+        // }
 
-        free(tempBuffer);
+        // free(tempBuffer);
 
         // Create new directory entry for the newly created inode
         dir_ent_t *newDirEnt = new dir_ent_t;
@@ -597,52 +598,53 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
             free(blockBuffer);
           }
           // Updating inode size
-          cout << "Updating inode size to " << total << endl;
+          // cout << "Updating inode size to " << total << endl;
           changeInodeSize(parentInodeNumber, total, *this);
           free(emptyBuffer);
         }
         free(newDirBuffer);
 
-        // Check if the size has changed
-        stat(parentInodeNumber, parentInode);
-        cout << "After write size" << parentInode->size << endl;
-        // Write code here that prints out new directories
-        // Directory, so print out entries
+        // // Check if the size has changed
+        // stat(parentInodeNumber, parentInode);
+        // cout << "After write size" << parentInode->size << endl;
+        // // Write code here that prints out new directories
+        // // Directory, so print out entries
 
-        // Collect directories
-        // Use inode.size to get the size for the read
-        fileSize = parentInode->size;
-        cout << "new fileSize is: " << fileSize << endl;
+        // // Collect directories
+        // // Use inode.size to get the size for the read
+        // fileSize = parentInode->size;
+        // cout << "new fileSize is: " << fileSize << endl;
 
-        // For debugging only
-        tempBuffer = malloc(fileSize);
-        read(parentInodeNumber, tempBuffer, fileSize); // read contents of currInodeNum *(inode num of target)
+        // // For debugging only
+        // tempBuffer = malloc(fileSize);
+        // read(parentInodeNumber, tempBuffer, fileSize); // read contents of currInodeNum *(inode num of target)
 
-        // Buffer contains directory contents
-        dirBuffer = (dir_ent_t *)tempBuffer;
-        entryCount = fileSize / sizeof(dir_ent_t);
+        // // Buffer contains directory contents
+        // dirBuffer = (dir_ent_t *)tempBuffer;
+        // entryCount = fileSize / sizeof(dir_ent_t);
 
-        vector<dir_ent_t> dirEnts2;
-        // Collect directory elements
-        for (int i = 0; i < entryCount; i++)
-        {
-          // Append each entry to vector
-          dirEnts2.push_back(dirBuffer[i]);
-        }
-        // Print relevant info
-        for (auto ent : dirEnts)
-        {
-          int inodeNum = ent.inum;
-          char *fileName = (char *)ent.name;
-          cout << inodeNum << "\t" << fileName << "\n";
-        }
+        // vector<dir_ent_t> dirEnts2;
+        // // Collect directory elements
+        // for (int i = 0; i < entryCount; i++)
+        // {
+        //   // Append each entry to vector
+        //   dirEnts2.push_back(dirBuffer[i]);
+        // }
+        // // Print relevant info
+        // for (auto ent : dirEnts)
+        // {
+        //   int inodeNum = ent.inum;
+        //   char *fileName = (char *)ent.name;
+        //   cout << inodeNum << "\t" << fileName << "\n";
+        // }
 
-        free(tempBuffer);
+        // free(tempBuffer);
         free(inodeBitmap);
         delete newDirEnt;
         delete parentInode;
-        delete newInode;
       }
+      // else file
+      delete newInode;
     }
     else
     {

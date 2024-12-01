@@ -487,28 +487,191 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         inode_t *parentInode = new inode_t;
         stat(parentInodeNumber, parentInode);
 
+        cout << "Before write size" << parentInode->size << endl;
+        // Write code here that prints out new directories
+        // Directory, so print out entries
+        vector<dir_ent_t> dirEnts;
+
+        // Collect directories
+        // Use inode.size to get the size for the read
+        int tempSize = parentInode->size;
+
+        void *tempBuffer = malloc(tempSize);
+        cout << "about to read" << endl;
+        read(parentInodeNumber, tempBuffer, tempSize); // read contents of currInodeNum *(inode num of target)
+
+        // Buffer contains directory contents
+        dir_ent_t *dirBuffer = (dir_ent_t *)tempBuffer;
+        int entryCount = tempSize / sizeof(dir_ent_t);
+
+        // Collect directory elements
+        for (int i = 0; i < entryCount; i++)
+        {
+          // Append each entry to vector
+          dirEnts.push_back(dirBuffer[i]);
+        }
+        // Print relevant info
+        for (auto ent : dirEnts)
+        {
+          int inodeNum = ent.inum;
+          char *fileName = (char *)ent.name;
+          cout << inodeNum << "\t" << fileName << "\n";
+        }
+
+        free(tempBuffer);
+
         // Create new directory entry for the newly created inode
         dir_ent_t *newDirEnt = new dir_ent_t;
         strncpy(newDirEnt->name, name.c_str(), DIR_ENT_NAME_SIZE);
         newDirEnt->inum = inodeNumToCreate;
 
-        // Read the parent inode content
-        // Copy in the new dir_ent information for the newly created inode at the end of the content, write(), and writeInodeRegion()
+        // cout << newDirEnt->name << endl;
+
+        /*
+        Writing to direct pointers of the parentInode
+        */
         int fileSize = parentInode->size;
-        void *buffer = malloc(fileSize + sizeof(*newDirEnt));
-        read(parentInodeNumber, buffer, fileSize);
-
+        int newFileSize = fileSize + sizeof(*newDirEnt);
+        void *newDirBuffer = malloc(newFileSize);
+        read(parentInodeNumber, newDirBuffer, fileSize); // Read what exists at inode currently
         // Copy in data of newDirEnt at the end of buffer
-        memcpy((char *)buffer + fileSize, newDirEnt, sizeof(*newDirEnt));
-        // Write the change
-        write(parentInodeNumber, buffer, fileSize + sizeof(*newDirEnt));
+        memcpy((char *)newDirBuffer + fileSize, newDirEnt, sizeof(*newDirEnt));
 
-        free(buffer);
+        // Determine if new buffer is less than, the same, or more blocks
+        int currBlockCount = fileSize / UFS_BLOCK_SIZE;
+        if ((fileSize % UFS_BLOCK_SIZE) != 0)
+        {
+          currBlockCount += 1;
+        }
+
+        int sizeToWrite = newFileSize;
+        int newBlockCount = sizeToWrite / UFS_BLOCK_SIZE;
+        if ((fileSize % UFS_BLOCK_SIZE) != 0)
+        {
+          newBlockCount += 1;
+        }
+
+        // Uses the same number of blocks
+        int total = 0;
+        if (newBlockCount == currBlockCount)
+        {
+          // Iterate through direct and get the current blocks that are in use
+          vector<int> blocksInUse;
+          for (int i = 0; i < currBlockCount; i++)
+          {
+            blocksInUse.push_back(parentInode->direct[i]);
+          }
+
+          // If block number same, all we have to do is foreach block, clear out and write
+          // then update inode size. Bitmap should remain the same
+          int remaining = sizeToWrite;
+          int copyAmount;
+          // Buffer of null values to use for emptying out the block
+          void *emptyBuffer = malloc(UFS_BLOCK_SIZE);
+          memset(emptyBuffer, '\0', UFS_BLOCK_SIZE);
+          // Clear and write each block at a time
+          for (int i = 0; i < currBlockCount; i++)
+          {
+            // Determine how much to write: a full block's worth or less
+            if (remaining > UFS_BLOCK_SIZE)
+            {
+              copyAmount = UFS_BLOCK_SIZE;
+            }
+            else
+            {
+              copyAmount = remaining;
+            }
+
+            void *blockBuffer = malloc(UFS_BLOCK_SIZE);
+            void *currBlockToCopy = (char *)newDirBuffer + i * UFS_BLOCK_SIZE; // Determines which block's worth of data from buffer should be copied in
+            memcpy(blockBuffer, currBlockToCopy, copyAmount);
+
+            // Reuse existing blokcs
+            int blockNum = blocksInUse[i];
+
+            // Clear out block
+            disk->writeBlock(blockNum, emptyBuffer); // writeBlock must ALWAYS write a block at a time
+
+            // Write block with new data
+            disk->writeBlock(blockNum, blockBuffer);
+            remaining -= copyAmount;
+            total += copyAmount;
+            free(blockBuffer);
+          }
+          // Updating inode size
+          cout << "Updating inode size to " << total << endl;
+          changeInodeSize(parentInodeNumber, total, *this);
+          free(emptyBuffer);
+        }
+
+        // if (newFileSize <= UFS_BLOCK_SIZE)
+        // {
+        //   // Test this first
+        //   void *buffer = malloc(newFileSize);
+        //   read(parentInodeNumber, buffer, fileSize); // Read what exists at inode currently
+        //   // Copy in data of newDirEnt at the end of buffer
+        //   memcpy((char *)buffer + fileSize, newDirEnt, sizeof(*newDirEnt));
+
+        //   // Append it to blockBuffer
+        //   // writeBlock
+
+        //   free(buffer);
+        // }
+
+        // void *buffer = malloc(fileSize + sizeof(*newDirEnt));
+        // read(parentInodeNumber, buffer, fileSize);
+
+        // // Copy in data of newDirEnt at the end of buffer
+        // memcpy((char *)buffer + fileSize, newDirEnt, sizeof(*newDirEnt));
+
+        // // Write the change
+        // int newFileSize = fileSize + sizeof(*newDirEnt);
+        // // write(parentInodeNumber, buffer, newFileSize); // The issue: I currently have it set up so that if its a directory, it throws an error
+
+        /*
+        Write separate lines here that goes ot the parentInode and reads its direct pointers
+        Then memcpy new dir ent into the tempBuffer that you read
+        Then copy that into a blocks worth of data, and then writeBlock and update size
+        If new fileSize bigger than a block, throw an error for now.
+        */
+
+        // Check if the size has changed
+        stat(parentInodeNumber, parentInode);
+        cout << fileSize + sizeof(*newDirEnt) << endl;
+        cout << "After write size" << parentInode->size << endl;
+        // Write code here that prints out new directories
+        // Directory, so print out entries
+
+        // Collect directories
+        // Use inode.size to get the size for the read
+        fileSize = parentInode->size;
+
+        tempBuffer = malloc(fileSize);
+        read(parentInodeNumber, tempBuffer, fileSize); // read contents of currInodeNum *(inode num of target)
+
+        // Buffer contains directory contents
+        dirBuffer = (dir_ent_t *)tempBuffer;
+        entryCount = fileSize / sizeof(dir_ent_t);
+
+        vector<dir_ent_t> dirEnts2;
+        // Collect directory elements
+        for (int i = 0; i < entryCount; i++)
+        {
+          // Append each entry to vector
+          dirEnts2.push_back(dirBuffer[i]);
+        }
+        // Print relevant info
+        for (auto ent : dirEnts)
+        {
+          int inodeNum = ent.inum;
+          char *fileName = (char *)ent.name;
+          cout << inodeNum << "\t" << fileName << "\n";
+        }
+
+        free(tempBuffer);
         free(inodeBitmap);
         delete newDirEnt;
         delete parentInode;
-        // update the parent's direct to include the new dir_ent for the newInode
-        // Update inodeRegion with the changed parent inode
         delete newInode;
       }
       // If file
@@ -664,6 +827,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
       free(blockBuffer);
     }
     // Updating inode size
+    cout << "Updating inode size to " << total << endl;
     changeInodeSize(inodeNumber, total, *this);
     free(emptyBuffer);
   }

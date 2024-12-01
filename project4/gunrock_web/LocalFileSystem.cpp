@@ -478,6 +478,8 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         memcpy((char *)dirEntBuffer + pos, dotDot, sizeof(*dotDot));
         write(inodeNumToCreate, dirEntBuffer, sizeOfEnts); // Wrote . and .. to the direct array of the newInode. This should also update the size automaticallyt
         free(dirEntBuffer);
+        delete dot;
+        delete dotDot;
 
         /*
         Updating parentInode, which is a directory, with information about the new inode

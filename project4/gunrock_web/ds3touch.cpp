@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
 
   Disk *disk = new Disk("./tests/disk_images/a3.img", UFS_BLOCK_SIZE);
   LocalFileSystem *fileSystem = new LocalFileSystem(disk);
-  string fileName = "create-test";
+  string fileName = "createTest";
 
   // inode_t *inode = new inode_t;
   // fileSystem->stat(parentInode, inode);

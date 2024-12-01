@@ -39,6 +39,83 @@ LocalFileSystem::LocalFileSystem(Disk *disk)
   readSuperBlock(super_global);
 }
 
+// Updates contents of a directory
+int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, LocalFileSystem &fs)
+{
+  inode_t *parentInode = new inode_t;
+  fs.stat(parentInodeNumber, parentInode); // Get the parent directory that we have to update
+
+  // Determine if new buffer is less than, the same, or more blocks
+  int fileSize = parentInode->size;
+  int currBlockCount = fileSize / UFS_BLOCK_SIZE;
+  if ((fileSize % UFS_BLOCK_SIZE) != 0)
+  {
+    currBlockCount += 1;
+  }
+
+  int sizeToWrite = size;
+  int newBlockCount = sizeToWrite / UFS_BLOCK_SIZE;
+  if ((fileSize % UFS_BLOCK_SIZE) != 0)
+  {
+    newBlockCount += 1;
+  }
+
+  // Uses the same number of blocks
+  int total = 0;
+  if (newBlockCount == currBlockCount)
+  {
+    // Iterate through direct and get the current blocks that are in use
+    vector<int> blocksInUse;
+    for (int i = 0; i < currBlockCount; i++)
+    {
+      blocksInUse.push_back(parentInode->direct[i]);
+    }
+
+    // If block number same, all we have to do is foreach block, clear out and write
+    // then update inode size. Bitmap should remain the same
+    int remaining = sizeToWrite;
+    int copyAmount;
+    // Buffer of null values to use for emptying out the block
+    void *emptyBuffer = malloc(UFS_BLOCK_SIZE);
+    memset(emptyBuffer, '\0', UFS_BLOCK_SIZE);
+    // Clear and write each block at a time
+    for (int i = 0; i < currBlockCount; i++)
+    {
+      // Determine how much to write: a full block's worth or less
+      if (remaining > UFS_BLOCK_SIZE)
+      {
+        copyAmount = UFS_BLOCK_SIZE;
+      }
+      else
+      {
+        copyAmount = remaining;
+      }
+
+      void *blockBuffer = malloc(UFS_BLOCK_SIZE);
+      void *currBlockToCopy = (char *)newDirBuffer + i * UFS_BLOCK_SIZE; // Determines which block's worth of data from buffer should be copied in
+      memcpy(blockBuffer, currBlockToCopy, copyAmount);
+
+      // Reuse existing blokcs
+      int blockNum = blocksInUse[i];
+
+      // Clear out block
+      fs.disk->writeBlock(blockNum, emptyBuffer); // writeBlock must ALWAYS write a block at a time
+
+      // Write block with new data
+      fs.disk->writeBlock(blockNum, blockBuffer);
+      remaining -= copyAmount;
+      total += copyAmount;
+      free(blockBuffer);
+    }
+    // Updating inode size
+    // cout << "Updating inode size to " << total << endl;
+    changeInodeSize(parentInodeNumber, total, fs);
+    free(emptyBuffer);
+  }
+  delete parentInode;
+  return total;
+}
+
 // Read super block and allocate the structure accordingly
 void LocalFileSystem::readSuperBlock(super_t *super)
 {
@@ -336,19 +413,6 @@ int LocalFileSystem::read(int inodeNumber, void *buffer, int size)
   //  TODO: IF INCOMPLETE READ, SHOULD IT ONLY RETURN COMPLETE DIR OBJECTS?
 }
 
-/**
- * Makes a file or directory.
- *
- * Makes a file (type == UFS_REGULAR_FILE) or directory (type == UFS_DIRECTORY)
- * in the parent directory specified by parentInodeNumber of name name.
- *
- * Success: return the inode number of the new file or directory
- * Failure: -EINVALIDINODE, -EINVALIDNAME, -EINVALIDTYPE, -ENOTENOUGHSPACE.
- * Failure modes: parentInodeNumber does not exist or is not a directory, or
- * name is too long. If name already exists and is of the correct type,
- * return success, but if the name already exists and is of the wrong type,
- * return an error.
- */
 int LocalFileSystem::create(int parentInodeNumber, int type, string name)
 {
 
@@ -476,8 +540,11 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         memcpy((char *)dirEntBuffer, dot, sizeof(*dot));
         pos += sizeof(*dot);
         memcpy((char *)dirEntBuffer + pos, dotDot, sizeof(*dotDot));
-        int testRet = write(inodeNumToCreate, dirEntBuffer, sizeOfEnts); // Wrote . and .. to the direct array of the newInode. This should also update the size automatically (but this also shouldnt work because type is a directory now)
-        cout << testRet;
+
+        // FIX TO USE DIRECTORY SPECIFIC FUNC
+
+        write(inodeNumToCreate, dirEntBuffer, sizeOfEnts); // Wrote . and .. to the direct array of the newInode. This should also update the size automatically
+
         free(dirEntBuffer);
         delete dot;
         delete dotDot;
@@ -536,6 +603,8 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         // Copy in data of newDirEnt at the end of buffer
         memcpy((char *)newDirBuffer + fileSize, newDirEnt, sizeof(*newDirEnt));
 
+        writeToDirectory(parentInodeNumber, newDirBuffer, newFileSize, *this);
+        /*
         // Determine if new buffer is less than, the same, or more blocks
         int currBlockCount = fileSize / UFS_BLOCK_SIZE;
         if ((fileSize % UFS_BLOCK_SIZE) != 0)
@@ -603,40 +672,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
           free(emptyBuffer);
         }
         free(newDirBuffer);
-
-        // // Check if the size has changed
-        // stat(parentInodeNumber, parentInode);
-        // cout << "After write size" << parentInode->size << endl;
-        // // Write code here that prints out new directories
-        // // Directory, so print out entries
-
-        // // Collect directories
-        // // Use inode.size to get the size for the read
-        // fileSize = parentInode->size;
-        // cout << "new fileSize is: " << fileSize << endl;
-
-        // // For debugging only
-        // tempBuffer = malloc(fileSize);
-        // read(parentInodeNumber, tempBuffer, fileSize); // read contents of currInodeNum *(inode num of target)
-
-        // // Buffer contains directory contents
-        // dirBuffer = (dir_ent_t *)tempBuffer;
-        // entryCount = fileSize / sizeof(dir_ent_t);
-
-        // vector<dir_ent_t> dirEnts2;
-        // // Collect directory elements
-        // for (int i = 0; i < entryCount; i++)
-        // {
-        //   // Append each entry to vector
-        //   dirEnts2.push_back(dirBuffer[i]);
-        // }
-        // // Print relevant info
-        // for (auto ent : dirEnts)
-        // {
-        //   int inodeNum = ent.inum;
-        //   char *fileName = (char *)ent.name;
-        //   cout << inodeNum << "\t" << fileName << "\n";
-        // }
+        */
 
         // free(tempBuffer);
         free(inodeBitmap);

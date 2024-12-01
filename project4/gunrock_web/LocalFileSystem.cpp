@@ -39,6 +39,11 @@ LocalFileSystem::LocalFileSystem(Disk *disk)
   readSuperBlock(super_global);
 }
 
+
+
+/*
+MAIN ISSUES: MUST HANDLE CASE WHERE DIRECTORY IS BRAND NEW AND THEREFORE HAS NO BLOCKS. HANDLE CASE WHERE FILESIZE = 0, ELSE KEEP SAME
+*/
 // Updates contents of a directory
 int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, LocalFileSystem &fs)
 {
@@ -46,7 +51,8 @@ int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, 
   fs.stat(parentInodeNumber, parentInode); // Get the parent directory that we have to update
 
   // Determine if new buffer is less than, the same, or more blocks
-  int fileSize = parentInode->size;
+  int fileSize = parentInode->size; // This corerctly retrieves the new inode, which a directory with a size of 0 with non updated direct points
+  cout << "At first, filesize is: " << fileSize << endl;
   int currBlockCount = fileSize / UFS_BLOCK_SIZE;
   if ((fileSize % UFS_BLOCK_SIZE) != 0)
   {
@@ -54,6 +60,7 @@ int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, 
   }
 
   int sizeToWrite = size;
+  cout << "Sizetowrite: " << sizeToWrite << endl;
   int newBlockCount = sizeToWrite / UFS_BLOCK_SIZE;
   if ((fileSize % UFS_BLOCK_SIZE) != 0)
   {
@@ -64,10 +71,15 @@ int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, 
   int total = 0;
   if (newBlockCount == currBlockCount)
   {
+    cout << "Does first even reach here" << endl;
     // Iterate through direct and get the current blocks that are in use
     vector<int> blocksInUse;
     for (int i = 0; i < currBlockCount; i++)
     {
+
+      cout << "won't reach here since currBlockCount is actually just 0";
+      // HANDLE CORNER CASE WHERE FILESIZE 0, MEANING THAT THE DIRECTORY IS BRAND NEW AND NEW ONES MUST BE ASSIGNED
+      // This does not work when the size is 0--if so, there is nothign written, so we need to go tghrough the logic iof assigning direct pointers here
       blocksInUse.push_back(parentInode->direct[i]);
     }
 
@@ -97,7 +109,7 @@ int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, 
 
       // Reuse existing blokcs
       int blockNum = blocksInUse[i];
-
+      cout << "BLOCK " << blockNum << endl;
       // Clear out block
       fs.disk->writeBlock(blockNum, emptyBuffer); // writeBlock must ALWAYS write a block at a time
 
@@ -108,7 +120,8 @@ int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, 
       free(blockBuffer);
     }
     // Updating inode size
-    // cout << "Updating inode size to " << total << endl;
+    // At first pass, this updates inode size to 0
+    cout << "Updating inode size to " << total << endl;
     changeInodeSize(parentInodeNumber, total, fs);
     free(emptyBuffer);
   }

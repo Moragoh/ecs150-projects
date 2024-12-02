@@ -141,8 +141,8 @@ int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, 
     inode_t *testInode = new inode_t;
     fs.stat(parentInodeNumber, testInode);
 
-    cout << "In writeDir: Testinode block " << testInode->direct[0] << endl;
-    cout << "In writeDir: testinode size " << testInode->size << endl;
+    // cout << "In writeDir: Testinode block " << testInode->direct[0] << endl;
+    // cout << "In writeDir: testinode size " << testInode->size << endl;
     delete testInode;
 
     /*
@@ -475,6 +475,7 @@ int LocalFileSystem::stat(int inodeNumber, inode_t *inode)
   {
     free(inodeBitmap);
     delete[] inodes;
+    cerr << "NOTFOUND" << endl;
     return -EINVALIDINODE;
   }
   else
@@ -573,6 +574,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
   // Check if inode already exists
   inode_t *target = new inode_t;
   int lookupRet = lookup(parentInodeNumber, name);
+  stat(lookupRet, target);
 
   // Inode not found, so now look if there is enough space to create one
   if (lookupRet == -ENOTFOUND)
@@ -606,11 +608,9 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
 
     if (enoughSpaceToCreate)
     {
-      // Create the new inode
-      inode_t *newInode = new inode_t;
-
       if (type == 0)
       {
+        inode_t *newInode = new inode_t;
         // Creating a new inode
         newInode->type = 0;
         newInode->size = 0;
@@ -651,6 +651,15 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         // We have new inodeBitmap, so now write it
         writeInodeBitmap(super_global, inodeBitmap);
 
+        // Critical: Bitmap not updated here, so returns an error
+        inode_t *testInode = new inode_t;
+        stat(inodeNumToCreate, testInode);
+
+        cout << "After writing contents of new directory" << endl;
+        cout << "Testinode type " << testInode->type << "Testinode size " << testInode->size << endl;
+        cout << "Testinode direct " << testInode->direct[0] << endl;
+        delete testInode;
+
         /*
         Filling up contents of the new directory
         */
@@ -674,9 +683,8 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         memcpy((char *)dirEntBuffer + pos, dotDot, sizeof(*dotDot));
 
         writeToDirectory(inodeNumToCreate, dirEntBuffer, sizeOfEnts, *this);
-        // write(inodeNumToCreate, dirEntBuffer, sizeOfEnts); // Wrote . and .. to the direct array of the newInode. This should also update the size automatically
 
-        inode_t *testInode = new inode_t;
+        testInode = new inode_t;
         stat(inodeNumToCreate, testInode);
 
         cout << "After writing contents of new directory" << endl;
@@ -715,9 +723,9 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         free(newDirBuffer);
         delete newDirEnt;
         delete parentInode;
+        delete newInode;
       }
       // else file
-      delete newInode;
     }
     else
     {
@@ -730,17 +738,14 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
     // Check if the type is correct
     if ((int)type == target->type)
     {
+      // CHECKED
       delete inode;
       delete target;
-      cout << "That alr exist" << endl;
       return lookupRet;
     }
     else
     {
-      cout << "original type: " << type << endl;
-      cout << "target type: " << target->type << endl;
-
-      cout << "Wrong type" << endl;
+      //  CHECKED
       // Exists but is the wrong type
       delete inode;
       delete target;

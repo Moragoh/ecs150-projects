@@ -68,6 +68,11 @@ int main(int argc, char *argv[])
   // File Data
   cout << "\n";
   cout << "File data" << endl;
+
+  if (fileSize == 0)
+  {
+    return 0;
+  }
   // Use read() utility and print out the buffer
   void *buffer[fileSize];
   fileSystem->read(inodeNumber, buffer, fileSize);

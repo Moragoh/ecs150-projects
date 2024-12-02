@@ -39,93 +39,213 @@ LocalFileSystem::LocalFileSystem(Disk *disk)
   readSuperBlock(super_global);
 }
 
-
-
 /*
 MAIN ISSUES: MUST HANDLE CASE WHERE DIRECTORY IS BRAND NEW AND THEREFORE HAS NO BLOCKS. HANDLE CASE WHERE FILESIZE = 0, ELSE KEEP SAME
 */
 // Updates contents of a directory
 int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, LocalFileSystem &fs)
 {
+  // There is only a case where we would have to allcoate one extra block
+
   inode_t *parentInode = new inode_t;
   fs.stat(parentInodeNumber, parentInode); // Get the parent directory that we have to update
 
   // Determine if new buffer is less than, the same, or more blocks
   int fileSize = parentInode->size; // This corerctly retrieves the new inode, which a directory with a size of 0 with non updated direct points
-  cout << "At first, filesize is: " << fileSize << endl;
-  int currBlockCount = fileSize / UFS_BLOCK_SIZE;
-  if ((fileSize % UFS_BLOCK_SIZE) != 0)
-  {
-    currBlockCount += 1;
-  }
-
-  int sizeToWrite = size;
-  cout << "Sizetowrite: " << sizeToWrite << endl;
-  int newBlockCount = sizeToWrite / UFS_BLOCK_SIZE;
-  if ((fileSize % UFS_BLOCK_SIZE) != 0)
-  {
-    newBlockCount += 1;
-  }
-
-  // Uses the same number of blocks
   int total = 0;
-  if (newBlockCount == currBlockCount)
+  delete parentInode;
+  if (fileSize == 0)
   {
-    cout << "Does first even reach here" << endl;
-    // Iterate through direct and get the current blocks that are in use
-    vector<int> blocksInUse;
-    for (int i = 0; i < currBlockCount; i++)
-    {
+    parentInode = new inode_t;
+    fs.stat(parentInodeNumber, parentInode);
 
-      cout << "won't reach here since currBlockCount is actually just 0";
-      // HANDLE CORNER CASE WHERE FILESIZE 0, MEANING THAT THE DIRECTORY IS BRAND NEW AND NEW ONES MUST BE ASSIGNED
-      // This does not work when the size is 0--if so, there is nothign written, so we need to go tghrough the logic iof assigning direct pointers here
-      blocksInUse.push_back(parentInode->direct[i]);
+    // Brand new inode. Must assign it blocks for its direct[] and write
+    unsigned char *dataBitmap = (unsigned char *)malloc(super_global->data_bitmap_len * UFS_BLOCK_SIZE);
+    fs.readDataBitmap(super_global, dataBitmap);
+
+    int newBlock;
+    int enoughSpace = 0;
+    int startBlock = super_global->data_region_addr;
+    int endBlock = super_global->data_region_addr + super_global->data_region_len;
+    for (int i = startBlock; i < endBlock; i++)
+    {
+      // Remember: i here is the absolute block number
+      int bitToCheck = (i - (super_global->data_region_addr));
+      int byteNum = bitToCheck / 8;
+      int byteToCheck = (int)dataBitmap[byteNum];
+
+      string byteInBin = bitset<8>(byteToCheck).to_string();
+      int byteOffset = bitToCheck % 8;
+
+      char status = byteInBin[byteInBin.size() - 1 - byteOffset];
+      string statusStr(1, status);
+      if (statusStr != "1")
+      {
+        newBlock = i;
+        enoughSpace = 1;
+        break;
+      }
     }
 
-    // If block number same, all we have to do is foreach block, clear out and write
-    // then update inode size. Bitmap should remain the same
-    int remaining = sizeToWrite;
-    int copyAmount;
-    // Buffer of null values to use for emptying out the block
+    // We know which block we can use
+    if (enoughSpace == 0)
+    {
+      cerr << "Not enough space!" << endl;
+    }
+
+    // We know which free block the new inode can use, so give it assign its first direct pointer that inode and write to it
+    // We need to copy newDirBuffer into a block buffer, then  write that block into newBlock
+
+    void *blockBuffer = malloc(UFS_BLOCK_SIZE);
+    memcpy(blockBuffer, newDirBuffer, size); // In this case, it is copying dot and dotDot
+
+    // Clear out block
     void *emptyBuffer = malloc(UFS_BLOCK_SIZE);
     memset(emptyBuffer, '\0', UFS_BLOCK_SIZE);
-    // Clear and write each block at a time
-    for (int i = 0; i < currBlockCount; i++)
-    {
-      // Determine how much to write: a full block's worth or less
-      if (remaining > UFS_BLOCK_SIZE)
-      {
-        copyAmount = UFS_BLOCK_SIZE;
-      }
-      else
-      {
-        copyAmount = remaining;
-      }
+    fs.disk->writeBlock(newBlock, emptyBuffer);
+    free(emptyBuffer);
 
-      void *blockBuffer = malloc(UFS_BLOCK_SIZE);
-      void *currBlockToCopy = (char *)newDirBuffer + i * UFS_BLOCK_SIZE; // Determines which block's worth of data from buffer should be copied in
-      memcpy(blockBuffer, currBlockToCopy, copyAmount);
+    // Write block with new data
+    fs.disk->writeBlock(newBlock, blockBuffer);
+    total += size;
+    free(blockBuffer);
 
-      // Reuse existing blokcs
-      int blockNum = blocksInUse[i];
-      cout << "BLOCK " << blockNum << endl;
-      // Clear out block
-      fs.disk->writeBlock(blockNum, emptyBuffer); // writeBlock must ALWAYS write a block at a time
+    cout << "parentInode before size: " << parentInode->size << endl;
 
-      // Write block with new data
-      fs.disk->writeBlock(blockNum, blockBuffer);
-      remaining -= copyAmount;
-      total += copyAmount;
-      free(blockBuffer);
-    }
-    // Updating inode size
-    // At first pass, this updates inode size to 0
+    /*
+    Inode size update
+    */
     cout << "Updating inode size to " << total << endl;
     changeInodeSize(parentInodeNumber, total, fs);
-    free(emptyBuffer);
+
+    /*
+    Now we must update the parentInode's direct
+    */
+    // Since it's a new inode, we always write to first
+    parentInode->direct[0] = newBlock;
+
+    // Persist direct pointer change to disk
+    inode_t *inodes = (inode_t *)malloc(super_global->num_inodes * sizeof(inode_t));
+    // Obtains current state of inodes. Now just have to replace it with inodes
+    fs.readInodeRegion(super_global, inodes);
+
+    // Find where in inodes the inode specified by inum is
+    // Check if it persisted
+    parentInode = new inode_t;
+    fs.stat(parentInodeNumber, parentInode);  // From this point, parentInode is the one witht he updated size
+    inodes[parentInodeNumber] = *parentInode; // Issue: this grabs the old parentInode with size of 0. We must grab one that has persisted through stat
+    fs.writeInodeRegion(super_global, inodes);
+    free(inodes);
+
+    // Check if it persisted
+    inode_t *testInode = new inode_t;
+    fs.stat(parentInodeNumber, testInode);
+
+    cout << "Testinode block " << testInode->direct[0] << endl;
+    cout << "testinode size " << testInode->size << endl;
+    delete testInode;
+
+    /*
+    Update data bitmap
+    */
+
+    int bitToCheck = (newBlock - (super_global->data_region_addr));
+    int byteNum = bitToCheck / 8;
+    int byteToCheck = (int)dataBitmap[byteNum];
+    int byteOffset = bitToCheck % 8;
+    string byteInBin = bitset<8>(byteToCheck).to_string();
+
+    // Access that byte and modify the value
+    byteInBin[byteInBin.size() - 1 - byteOffset] = '1';
+
+    // cout << "changed byteInBin: " << byteInBin << endl;
+
+    // Change that byteInBin to int again, then write it back as dataBitmap[byteNum]
+    int byteInInt = stoi(byteInBin, nullptr, 2);
+    unsigned char byteInChar = (unsigned char)byteInInt;
+    // cout << byteInInt << endl;
+    // cout << (int)byteInChar << endl;
+    dataBitmap[byteNum] = byteInChar;
+
+    // Write new dataBitmap using writeDatabitmap
+    fs.writeDataBitmap(super_global, dataBitmap);
+    free(dataBitmap);
+    delete parentInode;
   }
-  delete parentInode;
+  else
+  {
+    parentInode = new inode_t;
+    fs.stat(parentInodeNumber, parentInode);
+
+    int currBlockCount = fileSize / UFS_BLOCK_SIZE;
+    if ((fileSize % UFS_BLOCK_SIZE) != 0)
+    {
+      currBlockCount += 1;
+    }
+
+    int sizeToWrite = size;
+    int newBlockCount = sizeToWrite / UFS_BLOCK_SIZE;
+    if ((fileSize % UFS_BLOCK_SIZE) != 0)
+    {
+      newBlockCount += 1;
+    }
+
+    // Uses the same number of blocks
+    if (newBlockCount == currBlockCount)
+    {
+      // Iterate through direct and get the current blocks that are in use
+      vector<int> blocksInUse;
+      for (int i = 0; i < currBlockCount; i++)
+      {
+
+        // HANDLE CORNER CASE WHERE FILESIZE 0, MEANING THAT THE DIRECTORY IS BRAND NEW AND NEW ONES MUST BE ASSIGNED
+        // This does not work when the size is 0--if so, there is nothign written, so we need to go tghrough the logic iof assigning direct pointers here
+        blocksInUse.push_back(parentInode->direct[i]);
+      }
+
+      // If block number same, all we have to do is foreach block, clear out and write
+      // then update inode size. Bitmap should remain the same
+      int remaining = sizeToWrite;
+      int copyAmount;
+      // Buffer of null values to use for emptying out the block
+      void *emptyBuffer = malloc(UFS_BLOCK_SIZE);
+      memset(emptyBuffer, '\0', UFS_BLOCK_SIZE);
+      // Clear and write each block at a time
+      for (int i = 0; i < currBlockCount; i++)
+      {
+        // Determine how much to write: a full block's worth or less
+        if (remaining > UFS_BLOCK_SIZE)
+        {
+          copyAmount = UFS_BLOCK_SIZE;
+        }
+        else
+        {
+          copyAmount = remaining;
+        }
+
+        void *blockBuffer = malloc(UFS_BLOCK_SIZE);
+        void *currBlockToCopy = (char *)newDirBuffer + i * UFS_BLOCK_SIZE; // Determines which block's worth of data from buffer should be copied in
+        memcpy(blockBuffer, currBlockToCopy, copyAmount);
+
+        // Reuse existing blokcs
+        int blockNum = blocksInUse[i];
+        // Clear out block
+        fs.disk->writeBlock(blockNum, emptyBuffer); // writeBlock must ALWAYS write a block at a time
+
+        // Write block with new data
+        fs.disk->writeBlock(blockNum, blockBuffer);
+        remaining -= copyAmount;
+        total += copyAmount;
+        free(blockBuffer);
+      }
+      // Updating inode size
+      // At first pass, this updates inode size to 0
+      cout << "Updating inode size to " << total << endl;
+      changeInodeSize(parentInodeNumber, total, fs);
+      free(emptyBuffer);
+    }
+    delete parentInode;
+  }
   return total;
 }
 
@@ -410,8 +530,8 @@ int LocalFileSystem::read(int inodeNumber, void *buffer, int size)
   for (int i = 0; i < blocksToIterate; i++)
   {
     int blockNum = inode->direct[i]; // Get the block number we must read from
-
-    // TODO: Before readblock, check data region
+    // cout << blockNum << endl;
+    // FOr ds3, fails here--it seems that the blockNum is not updating properly
     disk->readBlock(blockNum, tempBuffer); // Read in the whole block
 
     int currCopyAmount = min(remaining, UFS_BLOCK_SIZE); // This allows us to only copy the part that we need from buffer
@@ -556,10 +676,14 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         pos += sizeof(*dot);
         memcpy((char *)dirEntBuffer + pos, dotDot, sizeof(*dotDot));
 
-        // FIX TO USE DIRECTORY SPECIFIC FUNC
-
         writeToDirectory(inodeNumToCreate, dirEntBuffer, sizeOfEnts, *this);
         // write(inodeNumToCreate, dirEntBuffer, sizeOfEnts); // Wrote . and .. to the direct array of the newInode. This should also update the size automatically
+
+        // inode_t *testInode = new inode_t;
+        // stat(inodeNumToCreate, testInode);
+
+        // cout << "Testinode type " << testInode->type << "Testinode size " << testInode->size << endl;
+        // delete testInode;
 
         free(dirEntBuffer);
         delete dot;
@@ -906,7 +1030,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     writeDataBitmap(super_global, dataBitmap);
     free(dataBitmap);
   }
-  else if (newBlockCount <= currBlockCount)
+  else if (newBlockCount < currBlockCount)
   {
     // LESS BLOCKS NEEDED
     // Iterate through the current blocks that are in use

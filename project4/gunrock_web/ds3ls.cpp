@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
     // Collect directories
     // Use inode.size to get the size for the read
     int fileSize = target->size;
-    cout << "fileSize of target " << fileSize << endl;
+    // cout << "fileSize of target " << fileSize << endl;
 
     void *buffer[fileSize];
     fileSystem->read(currInodeNum, buffer, fileSize);
@@ -101,7 +101,6 @@ int main(int argc, char *argv[])
     // Print relevant info
     for (auto ent : dirEnts)
     {
-      cout << "PRINTIONG CONTENTS" << endl;
       int inodeNum = ent.inum;
       char *fileName = (char *)ent.name;
       cout << inodeNum << "\t" << fileName << "\n";

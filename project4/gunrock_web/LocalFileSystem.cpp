@@ -406,6 +406,7 @@ int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, 
       free(dataBitmap);
       delete parentInode;
     }
+    delete parentInode;
   }
   return total;
 }
@@ -742,7 +743,6 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
   if (lookupRet == -ENOTFOUND)
   {
     // Check if there is enough space by checking the inodeBitmap
-    // DEBUG: Entered here correctly under not finding test. Where does it segfault?
     unsigned char *inodeBitmap = (unsigned char *)malloc(super_global->inode_bitmap_len * UFS_BLOCK_SIZE);
     readInodeBitmap(super_global, inodeBitmap);
 
@@ -895,7 +895,88 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         delete parentInode;
         delete newInode;
       }
-      // else file
+      else
+      {
+        /*
+        Creating a file
+        Create inode, persist
+        Update inode bitmap
+        Update parent directory entry
+        */
+        inode_t *newInode = new inode_t;
+        // Creating a new inode
+        newInode->type = 1;
+        newInode->size = 0;
+
+        /*
+        Writing new inode to disk
+        */
+        inode_t *inodes = (inode_t *)malloc(super_global->num_inodes * sizeof(inode_t));
+        // Obtains current state of inodes. Now just have to replace it with inodes
+        readInodeRegion(super_global, inodes);
+
+        // Find where in inodes the inode specified by inum is
+        inodes[inodeNumToCreate] = *newInode; // inode here is the aprent
+
+        writeInodeRegion(super_global, inodes);
+        free(inodes);
+
+        /*
+        Updating inode bitmap
+        */
+        inodeBitmap = (unsigned char *)malloc(super_global->inode_bitmap_len * UFS_BLOCK_SIZE);
+        readInodeBitmap(super_global, inodeBitmap);
+
+        // Update the inodeBitmap to set inodeNumToCreate to 1
+        int byteNum = inodeNumToCreate / 8;
+        int byteToCheck = (int)inodeBitmap[byteNum];
+
+        int byteOffset = inodeNumToCreate % 8;
+        string byteInBin = bitset<8>(byteToCheck).to_string();
+        byteInBin[byteInBin.size() - 1 - byteOffset] = '1';
+        // Change that byteInBin to int again, then write it back
+        int byteInInt = stoi(byteInBin, nullptr, 2);
+        unsigned char byteInChar = (unsigned char)byteInInt;
+        // cout << byteInInt << endl;
+        // cout << (int)byteInChar << endl;
+        inodeBitmap[byteNum] = byteInChar;
+
+        // We have new inodeBitmap, so now write it
+        writeInodeBitmap(super_global, inodeBitmap);
+
+        /*
+        Updating parentInode, which is a directory, with information about the new inode
+        */
+        inode_t *parentInode = new inode_t;
+        stat(parentInodeNumber, parentInode);
+
+        // Create new directory entry for the newly created inode
+        dir_ent_t *newDirEnt = new dir_ent_t;
+        strncpy(newDirEnt->name, name.c_str(), DIR_ENT_NAME_SIZE);
+        newDirEnt->inum = inodeNumToCreate;
+
+        /*
+        Writing to direct pointers of the parentInode
+        */
+        int fileSize = parentInode->size;
+        int newFileSize = fileSize + sizeof(*newDirEnt);
+        void *newDirBuffer = malloc(newFileSize);
+        read(parentInodeNumber, newDirBuffer, fileSize); // Read what exists at inode currently
+        // Copy in data of newDirEnt at the end of buffer
+        memcpy((char *)newDirBuffer + fileSize, newDirEnt, sizeof(*newDirEnt));
+
+        int writeRet = writeToDirectory(parentInodeNumber, newDirBuffer, newFileSize, *this);
+        if (writeRet < 0)
+        {
+          return -ENOTENOUGHSPACE;
+        }
+
+        free(inodeBitmap);
+        free(newDirBuffer);
+        delete newDirEnt;
+        delete parentInode;
+        delete newInode;
+      }
     }
     else
     {

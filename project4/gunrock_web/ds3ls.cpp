@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
 
   // Otherwise print out contents
   // Check if file or directory
-  if (target->type == 0)
+  if (target->type == UFS_DIRECTORY)
   {
     // Directory, so print out entries
     vector<dir_ent_t> dirEnts;

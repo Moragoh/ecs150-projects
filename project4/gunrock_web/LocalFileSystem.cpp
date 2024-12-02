@@ -568,7 +568,7 @@ int LocalFileSystem::lookup(int parentInodeNumber, string name)
   }
 
   // Not a directory
-  if (inode->type != 0)
+  if (inode->type != UFS_DIRECTORY)
   {
     cerr << "Given parent inode is not a directory" << endl;
     delete inode;
@@ -670,7 +670,7 @@ int LocalFileSystem::read(int inodeNumber, void *buffer, int size)
   // Get type of inode
   int inodeType = inode->type;
   // if type isn directory, direct pointers point to dir_ent, so cast buffer into dir_ents
-  if (inodeType == 0)
+  if (inodeType == UFS_DIRECTORY)
   {
     // Directory
     buffer = (dir_ent_t *)buffer;
@@ -724,7 +724,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
     return -EINVALIDINODE;
   }
 
-  if (inode->type != 0)
+  if (inode->type != UFS_DIRECTORY)
   {
     return -EINVALIDINODE;
   }
@@ -770,11 +770,11 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
 
     if (enoughSpaceToCreate)
     {
-      if (type == 0)
+      if (type == UFS_DIRECTORY)
       {
         inode_t *newInode = new inode_t;
         // Creating a new inode
-        newInode->type = 0;
+        newInode->type = UFS_DIRECTORY;
         newInode->size = 0;
 
         /*
@@ -905,7 +905,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         */
         inode_t *newInode = new inode_t;
         // Creating a new inode
-        newInode->type = 1;
+        newInode->type = UFS_REGULAR_FILE;
         newInode->size = 0;
 
         /*
@@ -1040,7 +1040,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     return -EINVALIDTYPE;
   }
 
-  if (inode->type == 0)
+  if (inode->type == UFS_DIRECTORY)
   {
     delete inode;
     return -EINVALIDTYPE;

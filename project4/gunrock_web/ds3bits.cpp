@@ -66,7 +66,6 @@ int main(int argc, char *argv[])
   }
   cout << "\n";
 
-
   free(inodeBitmap);
   free(dataBitmap);
   delete super;

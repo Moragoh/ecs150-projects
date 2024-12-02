@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  if (inode->type == 0)
+  if (inode->type == UFS_DIRECTORY)
   {
     // Is directory
     delete inode;

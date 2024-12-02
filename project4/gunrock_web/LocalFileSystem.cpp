@@ -1006,14 +1006,6 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
 
   delete target;
   delete inode;
-
-  /*
-  Issues:
-  1)target not being updated right
-  2) new directory still has c.txt in it
-  3) What if we need more blocks?
-
-  */
   return 0;
 }
 

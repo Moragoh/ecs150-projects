@@ -110,18 +110,17 @@ int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, 
     total += size;
     free(blockBuffer);
 
-    cout << "parentInode before size: " << parentInode->size << endl;
-
     /*
     Inode size update
     */
-    cout << "Updating inode size to " << total << endl;
     changeInodeSize(parentInodeNumber, total, fs);
-
+    delete parentInode;
     /*
     Now we must update the parentInode's direct
     */
-    // Since it's a new inode, we always write to first
+    parentInode = new inode_t;
+    fs.stat(parentInodeNumber, parentInode); // Grabs new one with size change
+
     parentInode->direct[0] = newBlock;
 
     // Persist direct pointer change to disk
@@ -131,18 +130,19 @@ int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, 
 
     // Find where in inodes the inode specified by inum is
     // Check if it persisted
-    parentInode = new inode_t;
-    fs.stat(parentInodeNumber, parentInode);  // From this point, parentInode is the one witht he updated size
+    // parentInode = new inode_t;
+    // fs.stat(parentInodeNumber, parentInode);  // From this point, parentInode is the one witht he updated size
     inodes[parentInodeNumber] = *parentInode; // Issue: this grabs the old parentInode with size of 0. We must grab one that has persisted through stat
     fs.writeInodeRegion(super_global, inodes);
     free(inodes);
+    delete parentInode;
 
     // Check if it persisted
     inode_t *testInode = new inode_t;
     fs.stat(parentInodeNumber, testInode);
 
-    cout << "Testinode block " << testInode->direct[0] << endl;
-    cout << "testinode size " << testInode->size << endl;
+    cout << "In writeDir: Testinode block " << testInode->direct[0] << endl;
+    cout << "In writeDir: testinode size " << testInode->size << endl;
     delete testInode;
 
     /*
@@ -170,7 +170,6 @@ int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, 
     // Write new dataBitmap using writeDatabitmap
     fs.writeDataBitmap(super_global, dataBitmap);
     free(dataBitmap);
-    delete parentInode;
   }
   else
   {
@@ -240,7 +239,6 @@ int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, 
       }
       // Updating inode size
       // At first pass, this updates inode size to 0
-      cout << "Updating inode size to " << total << endl;
       changeInodeSize(parentInodeNumber, total, fs);
       free(emptyBuffer);
     }
@@ -656,7 +654,6 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         /*
         Filling up contents of the new directory
         */
-
         // Prepare dir_ent_t entries of . and .. (write one at a time)
         dir_ent_t *dot = new dir_ent_t;
         strncpy(dot->name, ".\0", DIR_ENT_NAME_SIZE);
@@ -679,11 +676,13 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         writeToDirectory(inodeNumToCreate, dirEntBuffer, sizeOfEnts, *this);
         // write(inodeNumToCreate, dirEntBuffer, sizeOfEnts); // Wrote . and .. to the direct array of the newInode. This should also update the size automatically
 
-        // inode_t *testInode = new inode_t;
-        // stat(inodeNumToCreate, testInode);
+        inode_t *testInode = new inode_t;
+        stat(inodeNumToCreate, testInode);
 
-        // cout << "Testinode type " << testInode->type << "Testinode size " << testInode->size << endl;
-        // delete testInode;
+        cout << "After writing contents of new directory" << endl;
+        cout << "Testinode type " << testInode->type << "Testinode size " << testInode->size << endl;
+        cout << "Testinode direct " << testInode->direct[0] << endl;
+        delete testInode;
 
         free(dirEntBuffer);
         delete dot;

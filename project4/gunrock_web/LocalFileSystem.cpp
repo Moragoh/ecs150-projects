@@ -90,7 +90,7 @@ int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, 
     // We know which block we can use
     if (enoughSpace == 0)
     {
-      cerr << "Not enough space!" << endl;
+      return -ENOTENOUGHSPACE;
     }
 
     // We know which free block the new inode can use, so give it assign its first direct pointer that inode and write to it
@@ -173,6 +173,7 @@ int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, 
   }
   else
   {
+    // Adding more on top of an existing directory
     parentInode = new inode_t;
     fs.stat(parentInodeNumber, parentInode);
 
@@ -242,7 +243,169 @@ int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, 
       changeInodeSize(parentInodeNumber, total, fs);
       free(emptyBuffer);
     }
-    delete parentInode;
+    else
+    {
+      // Case where we need to allocate one more block (Since this is a case where we are adding another directory entry to direct[], we will always only be using one more block)
+      parentInode = new inode_t;
+      fs.stat(parentInodeNumber, parentInode);
+
+      // Finding a new block we can use
+      unsigned char *dataBitmap = (unsigned char *)malloc(super_global->data_bitmap_len * UFS_BLOCK_SIZE);
+      fs.readDataBitmap(super_global, dataBitmap);
+
+      int newBlock;
+      int enoughSpace = 0;
+      int startBlock = super_global->data_region_addr;
+      int endBlock = super_global->data_region_addr + super_global->data_region_len;
+      for (int i = startBlock; i < endBlock; i++)
+      {
+        // Remember: i here is the absolute block number
+        int bitToCheck = (i - (super_global->data_region_addr));
+        int byteNum = bitToCheck / 8;
+        int byteToCheck = (int)dataBitmap[byteNum];
+
+        string byteInBin = bitset<8>(byteToCheck).to_string();
+        int byteOffset = bitToCheck % 8;
+
+        char status = byteInBin[byteInBin.size() - 1 - byteOffset];
+        string statusStr(1, status);
+        if (statusStr != "1")
+        {
+          newBlock = i;
+          enoughSpace = 1;
+          break;
+        }
+      }
+
+      // We know which block we can use
+      if (enoughSpace == 0)
+      {
+        return -ENOTENOUGHSPACE;
+      }
+
+      // What do we have by this point?
+      // The current blocks the directory is holding, and the new block we can use
+
+      // Get currentblocks in use
+      vector<int> blocksToUse; // vector that holds both blocks that are currently in use + extra blocks to allocate
+      for (int i = 0; i < currBlockCount; i++)
+      {
+        blocksToUse.push_back(parentInode->direct[i]);
+      }
+
+      // Append newBlock to blocksToUse
+      blocksToUse.push_back(newBlock);
+      int totalBlockCount = blocksToUse.size();
+      // Now iterate through blocksToUse and follow write procedure
+
+      int copyAmount;
+      int remaining = size;
+      // Buffer of null values to use for emptying out the block
+      void *emptyBuffer = malloc(UFS_BLOCK_SIZE);
+      memset(emptyBuffer, '\0', UFS_BLOCK_SIZE);
+      // Clear and write each block at a time
+      for (int i = 0; i < totalBlockCount; i++)
+      {
+        // Determine how much to write: a full block's worth or less
+        if (remaining > UFS_BLOCK_SIZE)
+        {
+          copyAmount = UFS_BLOCK_SIZE;
+        }
+        else
+        {
+          copyAmount = remaining;
+        }
+
+        void *blockBuffer = malloc(UFS_BLOCK_SIZE);
+        void *currBlockToCopy = (char *)newDirBuffer + i * UFS_BLOCK_SIZE; // Determines which block's worth of data from buffer should be copied in
+        memcpy(blockBuffer, currBlockToCopy, copyAmount);
+
+        // Start writing to the blocks
+        int blockNum = blocksToUse[i];
+        // cout << "Writing to block " << blockNum << endl;
+
+        // Clear out block
+        fs.disk->writeBlock(blockNum, emptyBuffer);
+
+        // Write block with new data
+        fs.disk->writeBlock(blockNum, blockBuffer);
+        remaining -= copyAmount;
+        total += copyAmount;
+        free(blockBuffer);
+      }
+
+      // After writing, 3 things need to be done: inode size update, direct array update, data bitmap update
+
+      /*
+      Inode size update
+      */
+      changeInodeSize(parentInodeNumber, total, fs);
+      free(emptyBuffer);
+
+      /*
+      Updating direct pointer of the inodeNumber inode
+      */
+      inode_t *inode = new inode_t;
+      int ret = fs.stat(parentInodeNumber, inode);
+      if (ret != 0)
+      {
+        cerr << "Error while getting inode to update its direct pointers" << endl;
+      }
+
+      // Iterate through blocksToUse and update the direct[] entries. We can check this with ds3cart
+      for (int i = 0; i < (int)blocksToUse.size(); i++)
+      {
+        inode->direct[i] = blocksToUse[i];
+      }
+
+      // Persist to disk
+      inode_t *inodes = (inode_t *)malloc(super_global->num_inodes * sizeof(inode_t));
+      // Obtains current state of inodes. Now just have to replace it with inodes
+      fs.readInodeRegion(super_global, inodes);
+
+      // Find where in inodes the inode specified by inum is
+      inodes[parentInodeNumber] = *inode;
+
+      fs.writeInodeRegion(super_global, inodes);
+      free(inodes);
+      delete inode;
+
+      /*
+      Update data bitmap
+      */
+      for (int blockNum : blocksToUse)
+      {
+        // Remember: i here is the absolute block number
+        int bitToCheck = (blockNum - (super_global->data_region_addr));
+        int byteNum = bitToCheck / 8;
+        int byteToCheck = (int)dataBitmap[byteNum];
+        int byteOffset = bitToCheck % 8;
+        string byteInBin = bitset<8>(byteToCheck).to_string();
+
+        // Access that byte and modify the value
+        byteInBin[byteInBin.size() - 1 - byteOffset] = '1';
+
+        // cout << "changed byteInBin: " << byteInBin << endl;
+
+        // Change that byteInBin to int again, then write it back as dataBitmap[byteNum]
+        int byteInInt = stoi(byteInBin, nullptr, 2);
+        unsigned char byteInChar = (unsigned char)byteInInt;
+        // cout << byteInInt << endl;
+        // cout << (int)byteInChar << endl;
+        dataBitmap[byteNum] = byteInChar;
+        // int numDataInBytes = super_global->num_data / 8;
+        // Printing byte by byte
+        // for (int i = 0; i < numDataInBytes; i++)
+        // {
+        //   cout << (unsigned int)dataBitmap[i] << " ";
+        // }
+        // cout << "\n";
+      }
+      // Write new dataBitmap using writeDatabitmap
+      fs.writeDataBitmap(super_global, dataBitmap);
+      free(dataBitmap);
+      delete parentInode;
+    }
   }
   return total;
 }
@@ -681,7 +844,11 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         pos += sizeof(*dot);
         memcpy((char *)dirEntBuffer + pos, dotDot, sizeof(*dotDot));
 
-        writeToDirectory(inodeNumToCreate, dirEntBuffer, sizeOfEnts, *this);
+        int writeRet = writeToDirectory(inodeNumToCreate, dirEntBuffer, sizeOfEnts, *this);
+        if (writeRet < 0)
+        {
+          return -ENOTENOUGHSPACE;
+        }
 
         // testInode = new inode_t;
         // stat(inodeNumToCreate, testInode);
@@ -716,7 +883,11 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         // Copy in data of newDirEnt at the end of buffer
         memcpy((char *)newDirBuffer + fileSize, newDirEnt, sizeof(*newDirEnt));
 
-        writeToDirectory(parentInodeNumber, newDirBuffer, newFileSize, *this);
+        writeRet = writeToDirectory(parentInodeNumber, newDirBuffer, newFileSize, *this);
+        if (writeRet < 0)
+        {
+          return -ENOTENOUGHSPACE;
+        }
 
         free(inodeBitmap);
         free(newDirBuffer);

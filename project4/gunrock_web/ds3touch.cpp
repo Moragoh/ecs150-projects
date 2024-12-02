@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
 
   // Temporarily use to test create
   // Problem: It's saying that inode 2 is an invalid inode. Find out why
-  fileSystem->create(2, 0, fileName);
+  fileSystem->create(1, 0, "Bababooey");
 
   delete disk;
   delete fileSystem;

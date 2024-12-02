@@ -74,10 +74,11 @@ int main(int argc, char *argv[])
     return 0;
   }
   // Use read() utility and print out the buffer
-  void *buffer[fileSize];
+  void *buffer[fileSize + 1];
   fileSystem->read(inodeNumber, buffer, fileSize);
   char *charBuffer = (char *)buffer;
-  cout << charBuffer;
+  charBuffer[fileSize + 1] = '\0';
+  cout << charBuffer; // Make sure to null terminate anything read in
 
   delete inode;
   delete disk;

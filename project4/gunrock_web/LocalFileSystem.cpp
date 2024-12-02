@@ -715,6 +715,11 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
 {
 
   /* Error Checking */
+  if (parentInodeNumber > super_global->num_inodes)
+  {
+    return -EINVALIDINODE;
+  }
+
   inode_t *inode = new inode_t;
   int ret = stat(parentInodeNumber, inode);
 
@@ -733,7 +738,6 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
   {
     return -EINVALIDNAME;
   }
-
   // Check if inode already exists
   inode_t *target = new inode_t;
   int lookupRet = lookup(parentInodeNumber, name);
@@ -887,6 +891,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         if (writeRet < 0)
         {
           return -ENOTENOUGHSPACE;
+          // If it fails here, we have to roll back on the inode creation, meaning that the inode bitmap change must be reverted back to 0
         }
 
         free(inodeBitmap);
@@ -969,6 +974,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         if (writeRet < 0)
         {
           return -ENOTENOUGHSPACE;
+          // Means writing to change parewnty directory failed--think: what inodes need to be rolled back?
         }
 
         free(inodeBitmap);
@@ -980,6 +986,9 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
     }
     else
     {
+      // Failure for when we do not have enough space for 1 inode. At max, we need space for
+      delete target;
+      delete inode;
       return -ENOTENOUGHSPACE;
     }
   }

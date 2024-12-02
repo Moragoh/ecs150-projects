@@ -475,7 +475,6 @@ int LocalFileSystem::stat(int inodeNumber, inode_t *inode)
   {
     free(inodeBitmap);
     delete[] inodes;
-    cerr << "NOTFOUND" << endl;
     return -EINVALIDINODE;
   }
   else
@@ -651,14 +650,14 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         // We have new inodeBitmap, so now write it
         writeInodeBitmap(super_global, inodeBitmap);
 
-        // Critical: Bitmap not updated here, so returns an error
-        inode_t *testInode = new inode_t;
-        stat(inodeNumToCreate, testInode);
+        // // Critical: Bitmap not updated here, so returns an error
+        // inode_t *testInode = new inode_t;
+        // stat(inodeNumToCreate, testInode);
 
-        cout << "After writing contents of new directory" << endl;
-        cout << "Testinode type " << testInode->type << "Testinode size " << testInode->size << endl;
-        cout << "Testinode direct " << testInode->direct[0] << endl;
-        delete testInode;
+        // cout << "After writing contents of new directory" << endl;
+        // cout << "Testinode type " << testInode->type << "Testinode size " << testInode->size << endl;
+        // cout << "Testinode direct " << testInode->direct[0] << endl;
+        // delete testInode;
 
         /*
         Filling up contents of the new directory
@@ -684,13 +683,13 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
 
         writeToDirectory(inodeNumToCreate, dirEntBuffer, sizeOfEnts, *this);
 
-        testInode = new inode_t;
-        stat(inodeNumToCreate, testInode);
+        // testInode = new inode_t;
+        // stat(inodeNumToCreate, testInode);
 
-        cout << "After writing contents of new directory" << endl;
-        cout << "Testinode type " << testInode->type << "Testinode size " << testInode->size << endl;
-        cout << "Testinode direct " << testInode->direct[0] << endl;
-        delete testInode;
+        // cout << "After writing contents of new directory" << endl;
+        // cout << "Testinode type " << testInode->type << "Testinode size " << testInode->size << endl;
+        // cout << "Testinode direct " << testInode->direct[0] << endl;
+        // delete testInode;
 
         free(dirEntBuffer);
         delete dot;

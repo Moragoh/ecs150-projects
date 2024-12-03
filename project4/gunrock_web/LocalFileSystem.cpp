@@ -1539,6 +1539,7 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name)
       What needs to be done?
       1) On the data bitmap, unallocate all the blocks that are in the direct[] array, persist
       2) Unallocate lookupRet on the inode bitmap, persist
+      3) Edit the parentInode's direct[] and rewrite it to remove the entry
       */
       // Unallocate data bitmap
       int currBlockCount = fileSize / UFS_BLOCK_SIZE;
@@ -1601,6 +1602,35 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name)
       // We have new inodeBitmap, so now write it
       writeInodeBitmap(super_global, inodeBitmap);
       free(inodeBitmap);
+
+      // Update the direct[] of the parentInode
+      // Read the directory enties of the parent
+      vector<dir_ent_t> dirEntsToKeep;
+      int parentFileSize = parentInode->size;
+      void *parentBuffer = malloc(parentFileSize);
+      read(parentInodeNumber, parentBuffer, parentFileSize);
+      // Buffer contains directory contents
+      dirBuffer = (dir_ent_t *)parentBuffer;
+      entryCount = parentFileSize / sizeof(dir_ent_t);
+      // Collect directory elements
+      for (int i = 0; i < entryCount; i++)
+      {
+        // cout << dirBuffer[i].name << " " << name.c_str() << endl;
+        if (strcmp(dirBuffer[i].name, name.c_str()) != 0)
+        {
+          // Only keep if entries aren't the name we are trying to delete
+          dirEntsToKeep.push_back(dirBuffer[i]);
+        }
+      }
+
+      // What now? Write the contents of dirEntsToKeep into a buffer and write it to parentInodeNumber using writeToDirectory
+      int bufferSize = dirEntsToKeep.size() * sizeof(dir_ent_t);
+      void *newEnts = malloc(bufferSize);
+      memcpy(newEnts, dirEntsToKeep.data(), bufferSize);
+
+      writeToDirectory(parentInodeNumber, newEnts, bufferSize, *this);
+      free(newEnts);
+      free(parentBuffer);
       delete parentInode;
     }
     else
@@ -1668,6 +1698,34 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name)
       // We have new inodeBitmap, so now write it
       writeInodeBitmap(super_global, inodeBitmap);
       free(inodeBitmap);
+      // Update the direct[] of the parentInode
+      // Read the directory enties of the parent
+      vector<dir_ent_t> dirEntsToKeep;
+      int parentFileSize = parentInode->size;
+      void *parentBuffer = malloc(parentFileSize);
+      read(parentInodeNumber, parentBuffer, parentFileSize);
+      // Buffer contains directory contents
+      dir_ent_t *dirBuffer = (dir_ent_t *)parentBuffer;
+      int entryCount = parentFileSize / sizeof(dir_ent_t);
+      // Collect directory elements
+      for (int i = 0; i < entryCount; i++)
+      {
+        if (strcmp(dirBuffer[i].name, name.c_str()) != 0)
+        {
+          // Only keep if entries aren't the name we are trying to delete
+          dirEntsToKeep.push_back(dirBuffer[i]);
+        }
+        // cout << "Did not add" << dirBuffer[i].name << endl;
+      }
+
+      // What now? Write the contents of dirEntsToKeep into a buffer and write it to parentInodeNumber using writeToDirectory
+      int bufferSize = dirEntsToKeep.size() * sizeof(dir_ent_t);
+      void *newEnts = malloc(bufferSize);
+      memcpy(newEnts, dirEntsToKeep.data(), bufferSize);
+
+      writeToDirectory(parentInodeNumber, newEnts, bufferSize, *this);
+      free(newEnts);
+      free(parentBuffer);
       delete parentInode;
     }
     delete target;

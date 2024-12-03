@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
   {
     delete disk;
     delete fileSystem;
-    cerr << "Error while trying to open file" << endl;
+    cerr << "Could not write to dst_file" << endl;
     return 1;
   }
 
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
   {
     delete disk;
     delete fileSystem;
-    cerr << "Error while reading file" << endl;
+    cerr << "Could not write to dst_file" << endl;
     return 1;
   }
   // Convert stream into string, then string to char*
@@ -79,9 +79,9 @@ int main(int argc, char *argv[])
 
   if (writeRet < 0)
   {
-    cerr << "Could not write to dst_file" << endl;
     delete disk;
     delete fileSystem;
+    cerr << "Could not write to dst_file" << endl;
     return 1;
   }
 

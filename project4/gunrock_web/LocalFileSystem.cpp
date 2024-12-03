@@ -741,7 +741,8 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
   // Check if inode already exists
   inode_t *target = new inode_t;
   int lookupRet = lookup(parentInodeNumber, name);
-  stat(lookupRet, target);
+
+  stat(lookupRet, target); // If this is enotfound, then this itself will throw an error
 
   // Inode not found, so now look if there is enough space to create one
   if (lookupRet == -ENOTFOUND)
@@ -1442,8 +1443,243 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
   return total;
 }
 
+/**
+ * Remove a file or directory.
+ *
+ * Removes the file or directory name from the directory specified by
+ * parentInodeNumber.
+ *
+ * Success: 0
+ * Failure: -EINVALIDINODE, -EDIRNOTEMPTY, -EINVALIDNAME, -EUNLINKNOTALLOWED
+ * Failure modes: parentInodeNumber does not exist or isn't a directory,
+ * directory is NOT empty, or the name is invalid. Note that the name not
+ * existing is NOT a failure by our definition. You can't unlink '.' or '..'
+ */
 int LocalFileSystem::unlink(int parentInodeNumber, string name)
 {
+  // if name . or .., throw error
+  if (name == "." || name == "..")
+  {
+    return -EINVALIDNAME;
+  }
+
+  // if (name.size() > DIR_ENT_NAME_SIZE)
+  // {
+  //   return -EINVALIDNAME;
+  // }
+
+  inode_t *parentInode = new inode_t;
+  int ret = stat(parentInodeNumber, parentInode);
+
+  // Check ret to return 1 with error string
+  if (ret < 0)
+  {
+    // Invalid inode
+    delete parentInode;
+    //-EINVALIDINODE, -EINVALIDSIZE, -EINVALIDTYPE.
+    return -EINVALIDINODE;
+  }
+
+  if (parentInode->type != UFS_DIRECTORY)
+  {
+    delete parentInode;
+    return -EINVALIDINODE;
+  }
+
+  // We have the parentInode, so look for name inside it
+  int lookupRet = lookup(parentInodeNumber, name);
+  if (lookupRet > 0)
+  {
+    // Inode to unlink found
+    inode_t *target = new inode_t;
+    stat(lookupRet, target);
+
+    if (lookupRet == 0)
+    {
+      // Cannot delete root node
+      return -EUNLINKNOTALLOWED;
+    }
+
+    if (target->type == UFS_DIRECTORY)
+    {
+      // Directory, so go through all of its entries and see if any of them aren't . or .. if so, throw error
+      vector<dir_ent_t> dirEnts;
+
+      // Collect directories
+      int fileSize = target->size;
+      void *buffer[fileSize];
+      read(lookupRet, buffer, fileSize);
+
+      // Buffer contains directory contents
+      dir_ent_t *dirBuffer = (dir_ent_t *)buffer;
+      int entryCount = fileSize / sizeof(dir_ent_t);
+      // Collect directory elements
+      for (int i = 0; i < entryCount; i++)
+      {
+        // Append each entry to vector
+        dirEnts.push_back(dirBuffer[i]);
+      }
+
+      // Print relevant info
+      for (auto ent : dirEnts)
+      {
+        char *fileName = (char *)ent.name;
+
+        if ((strcmp(fileName, ".") != 0) && (strcmp(fileName, "..") != 0))
+        {
+          // there is a directory that isn't . or ..
+          delete target;
+          delete parentInode;
+          return -EUNLINKNOTALLOWED;
+        }
+      }
+
+      /*
+      Valid directory to delete, so carry on with delete procedure
+      What needs to be done?
+      1) On the data bitmap, unallocate all the blocks that are in the direct[] array, persist
+      2) Unallocate lookupRet on the inode bitmap, persist
+      */
+      // Unallocate data bitmap
+      int currBlockCount = fileSize / UFS_BLOCK_SIZE;
+      if ((fileSize % UFS_BLOCK_SIZE) != 0)
+      {
+        currBlockCount += 1;
+      }
+      vector<int> blocksInUse;
+      for (int i = 0; i < currBlockCount; i++)
+      {
+        blocksInUse.push_back(target->direct[i]);
+      }
+
+      // For every block in blocksToUse, unallocate on bitmap
+      unsigned char *dataBitmap = (unsigned char *)malloc(super_global->data_bitmap_len * UFS_BLOCK_SIZE);
+      readDataBitmap(super_global, dataBitmap);
+      for (int blockNum : blocksInUse)
+      {
+        // Remember: i here is the absolute block number
+        int bitToCheck = (blockNum - (super_global->data_region_addr));
+        int byteNum = bitToCheck / 8;
+        int byteToCheck = (int)dataBitmap[byteNum];
+        int byteOffset = bitToCheck % 8;
+        string byteInBin = bitset<8>(byteToCheck).to_string();
+
+        // Access that byte and modify the value back to 0
+        byteInBin[byteInBin.size() - 1 - byteOffset] = '0';
+
+        // cout << "changed byteInBin: " << byteInBin << endl;
+
+        // Change that byteInBin to int again, then write it back as dataBitmap[byteNum]
+        int byteInInt = stoi(byteInBin, nullptr, 2);
+        unsigned char byteInChar = (unsigned char)byteInInt;
+        // cout << byteInInt << endl;
+        // cout << (int)byteInChar << endl;
+        dataBitmap[byteNum] = byteInChar;
+      }
+      // Write new dataBitmap using writeDatabitmap
+      writeDataBitmap(super_global, dataBitmap);
+      free(dataBitmap);
+
+      // Unallocate inode bitmap
+      unsigned char *inodeBitmap = (unsigned char *)malloc(super_global->inode_bitmap_len * UFS_BLOCK_SIZE);
+      readInodeBitmap(super_global, inodeBitmap);
+
+      // Update the inodeBitmap
+      int byteNum = lookupRet / 8;
+      int byteToCheck = (int)inodeBitmap[byteNum];
+
+      int byteOffset = lookupRet % 8;
+      string byteInBin = bitset<8>(byteToCheck).to_string();
+      byteInBin[byteInBin.size() - 1 - byteOffset] = '0';
+      // Change that byteInBin to int again, then write it back
+      int byteInInt = stoi(byteInBin, nullptr, 2);
+      unsigned char byteInChar = (unsigned char)byteInInt;
+      // cout << byteInInt << endl;
+      // cout << (int)byteInChar << endl;
+      inodeBitmap[byteNum] = byteInChar;
+
+      // We have new inodeBitmap, so now write it
+      writeInodeBitmap(super_global, inodeBitmap);
+      free(inodeBitmap);
+      delete parentInode;
+    }
+    else
+    {
+      // Carry on and delete
+      // Unallocate data bitmap
+      int fileSize = target->size;
+      int currBlockCount = fileSize / UFS_BLOCK_SIZE;
+      if ((fileSize % UFS_BLOCK_SIZE) != 0)
+      {
+        currBlockCount += 1;
+      }
+      vector<int> blocksInUse;
+      for (int i = 0; i < currBlockCount; i++)
+      {
+        blocksInUse.push_back(target->direct[i]);
+      }
+
+      // For every block in blocksToUse, unallocate on bitmap
+      unsigned char *dataBitmap = (unsigned char *)malloc(super_global->data_bitmap_len * UFS_BLOCK_SIZE);
+      readDataBitmap(super_global, dataBitmap);
+      for (int blockNum : blocksInUse)
+      {
+        // Remember: i here is the absolute block number
+        int bitToCheck = (blockNum - (super_global->data_region_addr));
+        int byteNum = bitToCheck / 8;
+        int byteToCheck = (int)dataBitmap[byteNum];
+        int byteOffset = bitToCheck % 8;
+        string byteInBin = bitset<8>(byteToCheck).to_string();
+
+        // Access that byte and modify the value back to 0
+        byteInBin[byteInBin.size() - 1 - byteOffset] = '0';
+
+        // cout << "changed byteInBin: " << byteInBin << endl;
+
+        // Change that byteInBin to int again, then write it back as dataBitmap[byteNum]
+        int byteInInt = stoi(byteInBin, nullptr, 2);
+        unsigned char byteInChar = (unsigned char)byteInInt;
+        // cout << byteInInt << endl;
+        // cout << (int)byteInChar << endl;
+        dataBitmap[byteNum] = byteInChar;
+      }
+      // Write new dataBitmap using writeDatabitmap
+      writeDataBitmap(super_global, dataBitmap);
+      free(dataBitmap);
+
+      // Unallocate inode bitmap
+      unsigned char *inodeBitmap = (unsigned char *)malloc(super_global->inode_bitmap_len * UFS_BLOCK_SIZE);
+      readInodeBitmap(super_global, inodeBitmap);
+
+      // Update the inodeBitmap
+      int byteNum = lookupRet / 8;
+      int byteToCheck = (int)inodeBitmap[byteNum];
+
+      int byteOffset = lookupRet % 8;
+      string byteInBin = bitset<8>(byteToCheck).to_string();
+      byteInBin[byteInBin.size() - 1 - byteOffset] = '0';
+      // Change that byteInBin to int again, then write it back
+      int byteInInt = stoi(byteInBin, nullptr, 2);
+      unsigned char byteInChar = (unsigned char)byteInInt;
+      // cout << byteInInt << endl;
+      // cout << (int)byteInChar << endl;
+      inodeBitmap[byteNum] = byteInChar;
+
+      // We have new inodeBitmap, so now write it
+      writeInodeBitmap(super_global, inodeBitmap);
+      free(inodeBitmap);
+      delete parentInode;
+    }
+    delete target;
+  }
+  else
+  {
+    return 0;
+  }
+
+  // if name found
+  // Loop thru all entires and if there is anythign that isn't . or .. throw an error
+  // if name not not found, return 0 since its not an error
   return 0;
 }
 
@@ -1460,8 +1696,4 @@ Create tests
 3) Create when exsiting, wrong type
 4) Not enough space test
 
-TODO:
-- Create
-- Unlink
-- WriteInodeBitmap (prolly needed for both of the above)
 */

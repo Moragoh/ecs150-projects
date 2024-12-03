@@ -48,14 +48,17 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  cout << "before read" << endl;
   stringstream fileData;
   int totalBytesRead = 0;
   int bytesRead = 0;
-  char tempBuffer[1024];                               // Read in a block at a time
-  while ((bytesRead = read(fd, tempBuffer, 1024)) > 0) // Read will return how many bytes were saved
+  char tempBuffer[1024];                                             // Read in a block at a time
+  while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer))) > 0) // Read will return how many bytes were saved
   {
+    // use write call
+    fileData.write(tempBuffer, bytesRead);
     totalBytesRead += bytesRead;
-    fileData << tempBuffer;
+    // fileData << tempBuffer; // Says it broke here
   }
   fileData << '\0'; // Null term what we read
 
@@ -67,14 +70,15 @@ int main(int argc, char *argv[])
     cerr << "Error while reading file" << endl;
     return 1;
   }
-
+  cout << "After read" << endl;
   // Convert stream into string, then string to char*
   string fileInStr = fileData.str();
   const char *fileInChars = fileInStr.c_str();
-  size_t length = strlen(fileInChars);
+  cout << fileInChars;
+  // size_t length = strlen(fileInChars);
 
   // Now we have what we read in. Time to write using the LocalFileSystem write() function
-  fileSystem->write(dstInode, fileInChars, length + 1); // Because write always wipes clean and rewrites, we do length+1 make sure the null terminator is included
+  // fileSystem->write(dstInode, fileInChars, length + 1); // Because write always wipes clean and rewrites, we do length+1 make sure the null terminator is included
 
   delete disk;
   delete fileSystem;

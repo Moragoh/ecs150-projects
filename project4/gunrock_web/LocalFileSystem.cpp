@@ -1492,7 +1492,7 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name)
   {
     // Inode to unlink found
     inode_t *target = new inode_t;
-    stat(lookupRet, target);
+    stat(lookupRet, target); // target is what we need to delete
 
     if (lookupRet == 0)
     {
@@ -1508,7 +1508,7 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name)
       // Collect directories
       int fileSize = target->size;
       void *buffer[fileSize];
-      read(lookupRet, buffer, fileSize);
+      read(lookupRet, buffer, fileSize); // get entries of target to delete
 
       // Buffer contains directory contents
       dir_ent_t *dirBuffer = (dir_ent_t *)buffer;
@@ -1520,7 +1520,6 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name)
         dirEnts.push_back(dirBuffer[i]);
       }
 
-      // Print relevant info
       for (auto ent : dirEnts)
       {
         char *fileName = (char *)ent.name;
@@ -1550,7 +1549,7 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name)
       vector<int> blocksInUse;
       for (int i = 0; i < currBlockCount; i++)
       {
-        blocksInUse.push_back(target->direct[i]);
+        blocksInUse.push_back(target->direct[i]); // Collect the data blocks this directory is using
       }
 
       // For every block in blocksToUse, unallocate on bitmap
@@ -1586,7 +1585,7 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name)
       readInodeBitmap(super_global, inodeBitmap);
 
       // Update the inodeBitmap
-      int byteNum = lookupRet / 8;
+      int byteNum = lookupRet / 8; // lookupRet is the inode number of the target to delete
       int byteToCheck = (int)inodeBitmap[byteNum];
 
       int byteOffset = lookupRet % 8;

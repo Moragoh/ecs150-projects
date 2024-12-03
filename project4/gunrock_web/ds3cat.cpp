@@ -68,7 +68,6 @@ int main(int argc, char *argv[])
   // File Data
   cout << "\n";
   cout << "File data" << endl;
-
   if (fileSize == 0)
   {
     return 0;

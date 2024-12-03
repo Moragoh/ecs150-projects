@@ -73,9 +73,17 @@ int main(int argc, char *argv[])
   fileInStr += '\0';                 // Null termiante what we are about to write, since write() in our case never appends and always replaces everything
   const char *fileInChars = fileInStr.c_str();
   size_t length = strlen(fileInChars);
-
+  // cout << fileInChars;
   // Now we have what we read in. Time to write using the LocalFileSystem write() function
-  fileSystem->write(dstInode, fileInChars, length + 1); // Because write always wipes clean and rewrites, we do length+1 make sure the null terminator is included
+  int writeRet = fileSystem->write(dstInode, fileInChars, length + 1); // Because write always wipes clean and rewrites, we do length+1 make sure the null terminator is included
+
+  if (writeRet < 0)
+  {
+    cerr << "Could not write to dst_file" << endl;
+    delete disk;
+    delete fileSystem;
+    return 1;
+  }
 
   delete disk;
   delete fileSystem;

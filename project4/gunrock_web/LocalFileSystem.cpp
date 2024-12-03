@@ -1035,10 +1035,12 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     return -EINVALIDINODE;
   }
 
-  if (size < 0 || size > MAX_FILE_SIZE)
+  // if (size < 0 || size > MAX_FILE_SIZE)
+  if (size < 0)
   {
+    // ERROR HERE: If it is max file size, then it shoudl write as much as it can
     delete inode;
-    return -EINVALIDTYPE;
+    return -EINVALIDSIZE;
   }
 
   if (inode->type == UFS_DIRECTORY)

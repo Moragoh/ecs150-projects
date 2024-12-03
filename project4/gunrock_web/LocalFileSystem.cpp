@@ -90,6 +90,8 @@ int writeToDirectory(int parentInodeNumber, const void *newDirBuffer, int size, 
     // We know which block we can use
     if (enoughSpace == 0)
     {
+      delete parentInode;
+      free(dataBitmap);
       return -ENOTENOUGHSPACE;
     }
 
@@ -818,6 +820,8 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         // We have new inodeBitmap, so now write it
         writeInodeBitmap(super_global, inodeBitmap);
 
+        // DO ALL THIS AFTER ENIUGH SPACE
+
         // // Critical: Bitmap not updated here, so returns an error
         // inode_t *testInode = new inode_t;
         // stat(inodeNumToCreate, testInode);
@@ -852,6 +856,13 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name)
         int writeRet = writeToDirectory(inodeNumToCreate, dirEntBuffer, sizeOfEnts, *this);
         if (writeRet < 0)
         {
+          delete dot;
+          delete dotDot;
+          delete newInode;
+          delete target;
+          delete inode;
+          free(inodeBitmap);
+          free(dirEntBuffer);
           return -ENOTENOUGHSPACE;
         }
 
@@ -1621,6 +1632,13 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name)
           dirEntsToKeep.push_back(dirBuffer[i]);
         }
       }
+
+      // dirEnts to keep has num of "fewer " blocks
+      //  If so, unallocate data block of the parent inode that the direct pointed to
+
+      // Check
+      // Check the amount of blocks original directory requires
+      // After deleting, if I need less blocks,
 
       // What now? Write the contents of dirEntsToKeep into a buffer and write it to parentInodeNumber using writeToDirectory
       int bufferSize = dirEntsToKeep.size() * sizeof(dir_ent_t);

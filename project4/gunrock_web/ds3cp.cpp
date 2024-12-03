@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstring>
 #include <string>
 #include <sstream>
 
@@ -41,7 +42,10 @@ int main(int argc, char *argv[])
   int fd = open(srcFile.c_str(), O_RDONLY); // As a referesher--open obtains teh file descriptior, which read can be called on
   if (fd < 0)
   {
+    delete disk;
+    delete fileSystem;
     cerr << "Error while trying to open file" << endl;
+    return 1;
   }
 
   stringstream fileData;
@@ -55,15 +59,25 @@ int main(int argc, char *argv[])
   }
   fileData << '\0'; // Null term what we read
 
+  // Error check read
+  if (bytesRead < 0)
+  {
+    delete disk;
+    delete fileSystem;
+    cerr << "Error while reading file" << endl;
+    return 1;
+  }
+
   // Convert stream into string, then string to char*
   string fileInStr = fileData.str();
   const char *fileInChars = fileInStr.c_str();
+  size_t length = strlen(fileInChars);
 
-  cout << fileInChars;
+  // Now we have what we read in. Time to write using the LocalFileSystem write() function
+  fileSystem->write(dstInode, fileInChars, length + 1); // Because write always wipes clean and rewrites, we do length+1 make sure the null terminator is included
 
   delete disk;
   delete fileSystem;
   cout << dstInode;
-
   return 0;
 }

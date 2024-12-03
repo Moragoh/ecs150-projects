@@ -1302,8 +1302,8 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size)
     vector<int> blocksToFree;
     int bCount = 0;
 
-    cout << currBlockCount << endl;
-    cout << newBlockCount << endl;
+    // cout << currBlockCount << endl;
+    // cout << newBlockCount << endl;
     for (int i = 0; i < currBlockCount; i++)
     {
       if (bCount < newBlockCount)

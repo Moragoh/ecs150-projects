@@ -79,6 +79,5 @@ int main(int argc, char *argv[])
 
   delete disk;
   delete fileSystem;
-  cout << dstInode;
   return 0;
 }

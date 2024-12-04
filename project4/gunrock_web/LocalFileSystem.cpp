@@ -1688,59 +1688,59 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name)
 
       writeToDirectory(parentInodeNumber, newEnts, bufferSize, *this);
 
-      // After write: check size before and after. If after smaller, disallocate the assigned block
-      inode_t *newParentInode = new inode_t;
-      stat(parentInodeNumber, newParentInode);
-      int newParentFileSize = newParentInode->size;
+      // // After write: check size before and after. If after smaller, disallocate the assigned block
+      // inode_t *newParentInode = new inode_t;
+      // stat(parentInodeNumber, newParentInode);
+      // int newParentFileSize = newParentInode->size;
 
-      int oldBlockCount = parentFileSize / UFS_BLOCK_SIZE;
-      if ((parentFileSize % UFS_BLOCK_SIZE) != 0)
-      {
-        oldBlockCount += 1;
-      }
+      // int oldBlockCount = parentFileSize / UFS_BLOCK_SIZE;
+      // if ((parentFileSize % UFS_BLOCK_SIZE) != 0)
+      // {
+      //   oldBlockCount += 1;
+      // }
 
-      int newBlockCount = newParentFileSize / UFS_BLOCK_SIZE;
-      if ((newParentFileSize % UFS_BLOCK_SIZE) != 0)
-      {
-        newBlockCount += 1;
-      }
+      // int newBlockCount = newParentFileSize / UFS_BLOCK_SIZE;
+      // if ((newParentFileSize % UFS_BLOCK_SIZE) != 0)
+      // {
+      //   newBlockCount += 1;
+      // }
 
-      // Unallocate
-      if (newBlockCount < oldBlockCount)
-      {
-        dataBitmap = (unsigned char *)malloc(super_global->data_bitmap_len * UFS_BLOCK_SIZE);
-        readDataBitmap(super_global, dataBitmap);
-        // Go through parentInode's direct. for the last one, disallocate in the data mapa and write
-        for (int i = 0; i < oldBlockCount; i++)
-        {
-          if (i == (oldBlockCount - 1))
-          {
-            int blockToFree = newParentInode->direct[i];
-            // Remember: i here is the absolute block number
-            int bitToCheck = (blockToFree - (super_global->data_region_addr));
-            int byteNum = bitToCheck / 8;
-            int byteToCheck = (int)dataBitmap[byteNum];
-            int byteOffset = bitToCheck % 8;
-            string byteInBin = bitset<8>(byteToCheck).to_string();
+      // // Unallocate
+      // if (newBlockCount < oldBlockCount)
+      // {
+      //   dataBitmap = (unsigned char *)malloc(super_global->data_bitmap_len * UFS_BLOCK_SIZE);
+      //   readDataBitmap(super_global, dataBitmap);
+      //   // Go through parentInode's direct. for the last one, disallocate in the data mapa and write
+      //   for (int i = 0; i < oldBlockCount; i++)
+      //   {
+      //     if (i == (oldBlockCount - 1))
+      //     {
+      //       int blockToFree = newParentInode->direct[i];
+      //       // Remember: i here is the absolute block number
+      //       int bitToCheck = (blockToFree - (super_global->data_region_addr));
+      //       int byteNum = bitToCheck / 8;
+      //       int byteToCheck = (int)dataBitmap[byteNum];
+      //       int byteOffset = bitToCheck % 8;
+      //       string byteInBin = bitset<8>(byteToCheck).to_string();
 
-            // Access that byte and modify the value back to 0
-            byteInBin[byteInBin.size() - 1 - byteOffset] = '0';
+      //       // Access that byte and modify the value back to 0
+      //       byteInBin[byteInBin.size() - 1 - byteOffset] = '0';
 
-            // cout << "changed byteInBin: " << byteInBin << endl;
+      //       // cout << "changed byteInBin: " << byteInBin << endl;
 
-            // Change that byteInBin to int again, then write it back as dataBitmap[byteNum]
-            int byteInInt = stoi(byteInBin, nullptr, 2);
-            unsigned char byteInChar = (unsigned char)byteInInt;
-            // cout << byteInInt << endl;
-            // cout << (int)byteInChar << endl;
-            dataBitmap[byteNum] = byteInChar;
-            // Write new dataBitmap using writeDatabitmap
-            writeDataBitmap(super_global, dataBitmap);
-          }
-        }
-        free(dataBitmap);
-      }
-      delete newParentInode;
+      //       // Change that byteInBin to int again, then write it back as dataBitmap[byteNum]
+      //       int byteInInt = stoi(byteInBin, nullptr, 2);
+      //       unsigned char byteInChar = (unsigned char)byteInInt;
+      //       // cout << byteInInt << endl;
+      //       // cout << (int)byteInChar << endl;
+      //       dataBitmap[byteNum] = byteInChar;
+      //       // Write new dataBitmap using writeDatabitmap
+      //       writeDataBitmap(super_global, dataBitmap);
+      //     }
+      //   }
+      //   free(dataBitmap);
+      // }
+      // delete newParentInode;
       delete parentInode;
     }
     else
@@ -1852,41 +1852,41 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name)
         newBlockCount += 1;
       }
 
-      // Unallocate
-      if (newBlockCount < oldBlockCount)
-      {
-        dataBitmap = (unsigned char *)malloc(super_global->data_bitmap_len * UFS_BLOCK_SIZE);
-        readDataBitmap(super_global, dataBitmap);
-        // Go through parentInode's direct. for the last one, disallocate in the data mapa and write
-        for (int i = 0; i < oldBlockCount; i++)
-        {
-          if (i == (oldBlockCount - 1))
-          {
-            int blockToFree = newParentInode->direct[i];
-            // Remember: i here is the absolute block number
-            int bitToCheck = (blockToFree - (super_global->data_region_addr));
-            int byteNum = bitToCheck / 8;
-            int byteToCheck = (int)dataBitmap[byteNum];
-            int byteOffset = bitToCheck % 8;
-            string byteInBin = bitset<8>(byteToCheck).to_string();
+      // // Unallocate
+      // if (newBlockCount < oldBlockCount)
+      // {
+      //   dataBitmap = (unsigned char *)malloc(super_global->data_bitmap_len * UFS_BLOCK_SIZE);
+      //   readDataBitmap(super_global, dataBitmap);
+      //   // Go through parentInode's direct. for the last one, disallocate in the data mapa and write
+      //   for (int i = 0; i < oldBlockCount; i++)
+      //   {
+      //     if (i == (oldBlockCount - 1))
+      //     {
+      //       int blockToFree = newParentInode->direct[i];
+      //       // Remember: i here is the absolute block number
+      //       int bitToCheck = (blockToFree - (super_global->data_region_addr));
+      //       int byteNum = bitToCheck / 8;
+      //       int byteToCheck = (int)dataBitmap[byteNum];
+      //       int byteOffset = bitToCheck % 8;
+      //       string byteInBin = bitset<8>(byteToCheck).to_string();
 
-            // Access that byte and modify the value back to 0
-            byteInBin[byteInBin.size() - 1 - byteOffset] = '0';
+      //       // Access that byte and modify the value back to 0
+      //       byteInBin[byteInBin.size() - 1 - byteOffset] = '0';
 
-            // cout << "changed byteInBin: " << byteInBin << endl;
+      //       // cout << "changed byteInBin: " << byteInBin << endl;
 
-            // Change that byteInBin to int again, then write it back as dataBitmap[byteNum]
-            int byteInInt = stoi(byteInBin, nullptr, 2);
-            unsigned char byteInChar = (unsigned char)byteInInt;
-            // cout << byteInInt << endl;
-            // cout << (int)byteInChar << endl;
-            dataBitmap[byteNum] = byteInChar;
-            // Write new dataBitmap using writeDatabitmap
-            writeDataBitmap(super_global, dataBitmap);
-          }
-        }
-        free(dataBitmap);
-      }
+      //       // Change that byteInBin to int again, then write it back as dataBitmap[byteNum]
+      //       int byteInInt = stoi(byteInBin, nullptr, 2);
+      //       unsigned char byteInChar = (unsigned char)byteInInt;
+      //       // cout << byteInInt << endl;
+      //       // cout << (int)byteInChar << endl;
+      //       dataBitmap[byteNum] = byteInChar;
+      //       // Write new dataBitmap using writeDatabitmap
+      //       writeDataBitmap(super_global, dataBitmap);
+      //     }
+      //   }
+      //   free(dataBitmap);
+      // }
       delete newParentInode;
       delete parentInode;
 

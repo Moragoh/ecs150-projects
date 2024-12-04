@@ -1713,7 +1713,7 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name)
         // Go through parentInode's direct. for the last one, disallocate in the data mapa and write
         for (int i = 0; i < oldBlockCount; i++)
         {
-          if (i == (currBlockCount - 1))
+          if (i == (oldBlockCount - 1))
           {
             int blockToFree = newParentInode->direct[i];
             // Remember: i here is the absolute block number
@@ -1860,7 +1860,7 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name)
         // Go through parentInode's direct. for the last one, disallocate in the data mapa and write
         for (int i = 0; i < oldBlockCount; i++)
         {
-          if (i == (currBlockCount - 1))
+          if (i == (oldBlockCount - 1))
           {
             int blockToFree = newParentInode->direct[i];
             // Remember: i here is the absolute block number
